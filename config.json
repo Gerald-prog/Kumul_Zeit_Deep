@@ -1,0 +1,23 @@
+{
+  "ordner": "H:/dev/Kumul_Zeit/Zeiterfassung",
+  "start_montag": "07.07.2025",
+  "soll_wochenstunden": 40.0,
+  "start_saldo": 0.0,
+  "nutzer_name": "Dein Name",
+  "feiertags_zuschlag_faktor": 1.25,
+  "zeitmodelle": [
+    {
+      "gueltig_ab": "2025-07-07",
+      "bundesland": "SN",
+      "tagessoll": {
+        "0": 8.0,
+        "1": 8.0,
+        "2": 8.0,
+        "3": 8.0,
+        "4": 8.0,
+        "5": 0.0,
+        "6": 0.0
+      }
+    }
+  ]
+}

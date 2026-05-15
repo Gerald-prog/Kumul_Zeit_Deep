@@ -1,0 +1,11 @@
+neuer_ordner/
+├── config.json
+├── abwesenheiten.json
+├── config.py
+├── feiertage.py
+├── models.py
+├── abwesenheiten.py
+├── pdf_parser.py
+├── pdf_ordner_loader.py
+├── core_logic.py
+└── ui_desktop.py
