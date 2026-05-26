@@ -71,8 +71,7 @@ def ergaenze_wochen_um_soll_und_gutschriften(
             "feiertag_nicht_gearbeitet": 0.0,
             "feiertag_zuschlag": 0.0,
         }
-
-        feiertags_ist_summe = 0.0  # sammelt alle gearbeiteten Feiertagsstunden
+        feiertags_ist_summe = 0.0  # gearbeitete Feiertagsstunden (für Umbuchung)
 
         for i in range(7):
             tag = montag + timedelta(days=i)
@@ -88,13 +87,13 @@ def ergaenze_wochen_um_soll_und_gutschriften(
                 tagessoll_basis = soll_pro_tag_fallback if tag.weekday() < 5 else 0.0
                 land = "SN"
 
-            # Feiertage laden
+            # Feiertage laden (mit Cache)
             jahr = tag.year
             if (jahr, land) not in feiertags_cache:
                 feiertags_cache[(jahr, land)] = lade_feiertage(jahr, land)
             aktuelle_feiertage = feiertags_cache[(jahr, land)] | manuelle_feiertage
 
-            # Feiertagenamen für die Anzeige sammeln
+            # Feiertagsnamen für die Anzeige sammeln
             if tag in aktuelle_feiertage:
                 feiertage_obj = holidays.country_holidays(
                     "DE", years=tag.year, subdiv=land
@@ -105,44 +104,39 @@ def ergaenze_wochen_um_soll_und_gutschriften(
                     if eintrag not in woche.feiertags_namen:
                         woche.feiertags_namen.append(eintrag)
 
-            # --- Tages-Soll und Gutschriften berechnen ---
+            # --- 1. Urlaub ---
             if tag in urlaub:
-                gutschriften["urlaub"] += tagessoll_basis
                 woche.tage[tag] = Tagesdaten(ist=0.0, soll=0.0, typ="urlaub")
                 continue
 
+            # --- 2. Krankheit ---
             if tag in krankheit:
                 gearb = krankheit[tag]
-                # gutschrift = tagessoll_basis - gearb
-
-                # if gutschrift > 0:
-                #     gutschriften["krank"] += gutschrift
                 woche.tage[tag] = Tagesdaten(ist=gearb, soll=gearb, typ="krankheit")
                 continue
 
+            # --- 3. Feiertag (arbeitend oder nicht) ---
             if tag in aktuelle_feiertage:
                 if tag in woche.tage:  # am Feiertag gearbeitet
                     ist_std = woche.tage[tag].ist
                     zuschlag = 0.0
                     if feiertags_zuschlag_faktor > 1.0:
                         zuschlag = ist_std * (feiertags_zuschlag_faktor - 1.0)
-                    # gesamte Feiertagsarbeit (Ist + Zuschlag) in einen Topf
                     gutschriften["feiertag_zuschlag"] += ist_std + zuschlag
-                    feiertags_ist_summe += ist_std  # später abziehen von pdf_ist
-
+                    feiertags_ist_summe += ist_std
                     woche.tage[tag].typ = "feiertag_gearbeitet"
                     woche.tage[tag].soll = 0.0
                 else:  # nicht gearbeitet
-                    # gutschriften["feiertag_nicht_gearbeitet"] += tagessoll_basis
                     woche.tage[tag] = Tagesdaten(ist=0.0, soll=0.0, typ="feiertag_frei")
                 continue
 
-            # Normaltag oder mit Arzttermin
+            # --- 4. Arzttermin ---
             effektives_soll = tagessoll_basis
             if tag in arzttermine:
                 reduz = min(arzttermine[tag], tagessoll_basis)
                 effektives_soll = max(tagessoll_basis - reduz, 0.0)
 
+            # --- Normaltag: Eintrag anlegen oder Soll setzen ---
             if tag not in woche.tage:
                 woche.tage[tag] = Tagesdaten(
                     ist=0.0, soll=effektives_soll, typ="normal"
@@ -153,14 +147,14 @@ def ergaenze_wochen_um_soll_und_gutschriften(
                 if tag in arzttermine:
                     woche.tage[tag].typ = "arzttermin"
 
-        # --- Wochenwerte aus den Tagesdaten aggregieren ---
+        # --- Wochenwerte aus ALLEN 7 Tagen aggregieren ---
         wochen_soll_summe = 0.0
         for i in range(7):
             tag = montag + timedelta(days=i)
             if tag in woche.tage:
                 wochen_soll_summe += woche.tage[tag].soll
-            # Falls ein Tag nicht angelegt wurde (weder PDF noch Abwesenheit), gilt das Basis-Soll
             else:
+                # Tag wurde bisher in keinem Zweig angelegt → Basis-Soll verwenden
                 if rechner:
                     config = rechner.get_config_for_date(tag)
                     tagessoll = float(config["tagessoll"].get(str(tag.weekday()), 0.0))
@@ -174,11 +168,9 @@ def ergaenze_wochen_um_soll_und_gutschriften(
         woche.feiertag_nicht_gearbeitet_gutschrift = round(
             gutschriften["feiertag_nicht_gearbeitet"], 2
         )
-
         woche.feiertag_zuschlag_gutschrift = round(gutschriften["feiertag_zuschlag"], 2)
 
         gesamte_gutschrift = sum(gutschriften.values())
-        # woche.ist_stunden = round(pdf_ist + gesamte_gutschrift, 2)
         woche.ist_stunden = round(pdf_ist - feiertags_ist_summe + gesamte_gutschrift, 2)
         woche.diff = round(woche.ist_stunden - woche.soll_stunden, 2)
 
@@ -258,6 +250,7 @@ def run_auswertung(
 
     start_montag = start - timedelta(days=start.weekday())
     wochen = baue_wochen_aus_tagen(tages_ist)
+
     max_pdf_datum = max(tages_ist.keys()) if tages_ist else start_montag
     for pdf_file in sorted(Path(pdf_datei).glob("*.pdf")):
         match = re.search(r"(\d{4})\s+(\d{2})\s+(\d{2})", pdf_file.stem)
@@ -269,9 +262,12 @@ def run_auswertung(
                     max_pdf_datum = dat
             except ValueError:
                 pass
-    wochen = ergaenze_fehlende_wochen(
-        wochen, start_montag, max(tages_ist.keys()) if tages_ist else start_montag
-    )
+
+    wochen = ergaenze_fehlende_wochen(wochen, start_montag, max_pdf_datum)
+
+    # wochen = ergaenze_fehlende_wochen(
+    #     wochen, start_montag, max(tages_ist.keys()) if tages_ist else start_montag
+    # )
 
     ergaenze_wochen_um_soll_und_gutschriften(
         wochen=wochen,

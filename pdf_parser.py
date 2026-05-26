@@ -18,54 +18,29 @@ def lade_pdf_text(pfad: str | Path) -> str:
             page_text = page.extract_text()
             if page_text:
                 text.append(page_text)
-    return "\n".join(text)
+    gesamter_text = "\n".join(text)
+
+    # Prüfe, ob der Text normale Datumsangaben enthält
+    if not re.search(r"\d{2}\.\d{2}\.\d{4}", gesamter_text):
+        # Wenn nicht, ist er wahrscheinlich gespiegelt → umdrehen
+        gesamter_text = gesamter_text[::-1]
+
+    return gesamter_text
 
 
 def baue_tages_ist_aus_pdf_text(pdf_text: str) -> Dict[date, float]:
-    # Alleinstehende Datumszeilen vor der eigentlichen Stundenzeile entfernen
-    bereinigt = re.sub(
-        r"(\d{2}\.\d{2}\.\d{4})\s*\n\s*(\1\s+\d+[.,]?\d*)",
-        r"\2",
-        pdf_text,
-    )
-
     tages_ist: dict[date, float] = defaultdict(float)
 
-    # Neuer, robuster Regex: Nur Datum + erste Zahl (Stunden) – alles andere ignorieren
+    # Direkt nach Datum, Zahl und "Regular" oder "Holiday Surcharge" suchen
     pattern = re.compile(
-        r"(\d{2}\.\d{2}\.\d{4})\s+(\d+(?:[.,]\d+)?)\s+(Regular|Holiday Surcharge)",
-        re.MULTILINE,
+        r"(\d{2}\.\d{2}\.\d{4})\s+(\d+(?:[.,]\d+)?)\s+(Regular|Holiday Surcharge)"
     )
 
-    for match in pattern.finditer(bereinigt):
+    for match in pattern.finditer(pdf_text):
         datum_str = match.group(1)
         stunden_str = match.group(2)
-
         d = datetime.strptime(datum_str, "%d.%m.%Y").date()
         stunden = float(stunden_str.replace(",", "."))
         tages_ist[d] += stunden
 
     return dict(tages_ist)
-
-
-# def baue_tages_ist_aus_pdf_text(pdf_text: str) -> Dict[date, float]:
-#     # Textbereinigung: alleinstehende Datumszeilen vor Berechnungszeile entfernen
-#     bereinigt = re.sub(
-#         r"(\d{2}\.\d{2}\.\d{4})\s*\n\s*(\1\s+\d+[.,]?\d*\s+(?:Regular|Holiday Surcharge))",
-#         r"\2",
-#         pdf_text,
-#     )
-#     tages_ist: dict[date, float] = defaultdict(float)
-#     pattern = re.compile(
-#         r"(?P<datum>\d{2}\.\d{2}\.\d{4})\s+"
-#         r"(?P<stunden>\d+(?:,\d+)?)\s+"
-#         r"(?P<zeitart>[A-Za-z ]+)",
-#         re.MULTILINE,
-#     )
-#     for match in pattern.finditer(bereinigt):
-#         datum_str = match.group("datum")
-#         stunden_str = match.group("stunden")
-#         d = datetime.strptime(datum_str, "%d.%m.%Y").date()
-#         stunden = float(stunden_str.replace(",", "."))
-#         tages_ist[d] += stunden
-#     return dict(tages_ist)
