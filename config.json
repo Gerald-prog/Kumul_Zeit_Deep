@@ -1,10 +1,11 @@
 {
   "ordner": "H:/dev/Kumul_Zeit/Zeiterfassung",
-  "start_montag": "07.07.2025",
+  "start_montag": "06.01.2025",
   "soll_wochenstunden": 40.0,
-  "start_saldo": 0.0,
+  "start_saldo": 40.09,
   "nutzer_name": "Dein Name",
   "feiertags_zuschlag_faktor": 1.25,
+  "aktuelles_jahr": 2025,
   "zeitmodelle": [
     {
       "gueltig_ab": "2025-07-07",

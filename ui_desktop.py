@@ -13,6 +13,7 @@ from core_logic import run_auswertung
 from config import lade_config, speichere_config
 from models import WochenDaten
 from feiertage import BUNDESLAENDER
+from tkcalendar import DateEntry
 
 logging.basicConfig(level=logging.INFO)
 
@@ -102,9 +103,32 @@ class ZeiterfassungApp(ctk.CTk):
         self.title("Solera Zeit-Manager")
         self.geometry("1500x800")
         self.cfg = lade_config()
+        self.aktuelles_jahr = self.cfg.get("aktuelles_jahr", date.today().year)
         self.setup_ui()
-        self.after(100, self.load_and_refresh)
+        self.setze_jahr(self.aktuelles_jahr)  # Startet mit dem gespeicherten Jahr
+        # self.after(100, self.load_and_refresh)
         self.bind("<F5>", lambda event: self.load_and_refresh)
+
+    def create_date_entry(self, master, initial_date=None, **kwargs):
+        """Erstellt ein DateEntry-Widget mit einheitlichem Format."""
+        if initial_date is None:
+            initial_date = date.today()
+        elif isinstance(initial_date, str):
+            initial_date = datetime.strptime(initial_date, "%d.%m.%Y").date()
+
+        de = DateEntry(
+            master,
+            width=12,
+            background="darkblue",
+            foreground="white",
+            borderwidth=2,
+            date_pattern="dd.MM.yyyy",  # Deutsches Format
+            year=initial_date.year,
+            month=initial_date.month,
+            day=initial_date.day,
+            **kwargs,
+        )
+        return de
 
     def setup_ui(self):
         # Einstellungsbereich
@@ -125,11 +149,25 @@ class ZeiterfassungApp(ctk.CTk):
         ctk.CTkLabel(
             self.settings_frame, text="Start-Montag:", font=("Roboto", 12, "bold")
         ).grid(row=1, column=0, padx=10, pady=10, sticky="w")
-        self.entry_start = ctk.CTkEntry(self.settings_frame)
-        self.entry_start.insert(
-            0, self.cfg.get("start_montag", f"01.01.{date.today().year}")
+        self.entry_start = self.create_date_entry(  # ctk.CTkEntry(self.settings_frame)
+            self.settings_frame,
+            initial_date=self.cfg.get("start_montag", f"01.01.{date.today().year}"),
         )
+
+        # self.entry_start.insert(
+        #     0, self.cfg.get("start_montag", f"01.01.{date.today().year}")
+        # )
         self.entry_start.grid(row=1, column=1, padx=10, pady=10, sticky="w")
+
+        ctk.CTkLabel(
+            self.settings_frame, text="Jahr:", font=("Roboto", 12, "bold")
+        ).grid(row=4, column=0, padx=10, pady=10, sticky="w")
+        self.combo_jahr = ctk.CTkComboBox(
+            self.settings_frame, values=[str(y) for y in range(2025, 2031)]
+        )
+        self.combo_jahr.set(str(self.aktuelles_jahr))
+        self.combo_jahr.grid(row=4, column=1, padx=10, pady=10, sticky="w")
+        self.combo_jahr.configure(command=self.on_jahr_changed)
 
         ctk.CTkLabel(
             self.settings_frame, text="Soll-Stunden/Woche:", font=("Roboto", 12, "bold")
@@ -185,10 +223,10 @@ class ZeiterfassungApp(ctk.CTk):
         input_frame = ctk.CTkFrame(self.tab_urlaub)
         input_frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(input_frame, text="Von:").grid(row=0, column=0, padx=5, pady=10)
-        self.entry_u_von = ctk.CTkEntry(input_frame, placeholder_text="TT.MM.JJJJ")
+        self.entry_u_von = self.create_date_entry(input_frame)
         self.entry_u_von.grid(row=0, column=1, padx=5)
         ctk.CTkLabel(input_frame, text="Bis:").grid(row=0, column=2, padx=5, pady=10)
-        self.entry_u_bis = ctk.CTkEntry(input_frame, placeholder_text="TT.MM.JJJJ")
+        self.entry_u_bis = self.create_date_entry(input_frame)
         self.entry_u_bis.grid(row=0, column=3, padx=5)
         ctk.CTkButton(
             input_frame, text="Urlaub speichern", command=self.add_urlaub
@@ -220,20 +258,32 @@ class ZeiterfassungApp(ctk.CTk):
     def refresh_urlaub_list(self):
         for child in self.u_list_frame.winfo_children():
             child.destroy()
+
         raw = lade_abwesenheiten_raw()
-        for index, u in enumerate(raw.get("urlaub_raw", [])):
+        urlaube = raw.get("urlaub_raw", [])
+        jahr = self.aktuelles_jahr
+
+        gefiltert = []
+        for index, u in enumerate(urlaube):
+            von = datetime.strptime(u["von"], "%Y-%m-%d").date()
+            bis = datetime.strptime(u["bis"], "%Y-%m-%d").date()
+            if von.year <= jahr <= bis.year:
+                gefiltert.append((index, u))
+
+        for original_index, u in gefiltert:
             row = ctk.CTkFrame(self.u_list_frame)
             row.pack(fill="x", pady=2)
-            ctk.CTkLabel(row, text=f"{u['von']} bis {u['bis']}", width=300).pack(
-                side="left", padx=10
-            )
-            ctk.CTkButton(
+            txt = f"{u['von']} bis {u['bis']}"
+            ctk.CTkLabel(row, text=txt, width=300).pack(side="left", padx=10)
+
+            btn_del = ctk.CTkButton(
                 row,
                 text="Löschen",
                 width=60,
                 fg_color="red",
-                command=lambda i=index: self.delete_urlaub(i),
-            ).pack(side="right", padx=10)
+                command=lambda i=original_index: self.delete_urlaub(i),
+            )
+            btn_del.pack(side="right", padx=10)
 
     def delete_urlaub(self, index):
         raw = lade_abwesenheiten_raw()
@@ -249,10 +299,10 @@ class ZeiterfassungApp(ctk.CTk):
         ctk.CTkLabel(input_frame, text="Krank von:").grid(
             row=0, column=0, padx=10, pady=10
         )
-        self.entry_k_von = ctk.CTkEntry(input_frame, placeholder_text="TT.MM.JJJJ")
+        self.entry_k_von = self.create_date_entry(input_frame)
         self.entry_k_von.grid(row=0, column=1, padx=5)
         ctk.CTkLabel(input_frame, text="bis:").grid(row=0, column=2, padx=10, pady=10)
-        self.entry_k_bis = ctk.CTkEntry(input_frame, placeholder_text="optional")
+        self.entry_k_bis = self.create_date_entry(input_frame)
         self.entry_k_bis.grid(row=0, column=3, padx=5)
         ctk.CTkLabel(input_frame, text="Trotzdem gearbeitet (h):").grid(
             row=1, column=0, padx=10, pady=10
@@ -302,24 +352,41 @@ class ZeiterfassungApp(ctk.CTk):
             messagebox.showerror("Fehler", "Datum im Format TT.MM.JJJJ angeben.")
 
     def refresh_krank_list(self):
+        from abwesenheiten import lade_abwesenheiten_raw
+
         for child in self.k_list_frame.winfo_children():
             child.destroy()
+
         raw = lade_abwesenheiten_raw()
-        for index, k in enumerate(raw.get("krankheit_raw", [])):
+        krankheiten = raw.get("krankheit_raw", [])
+        jahr = self.aktuelles_jahr
+
+        gefiltert = []
+        for index, k in enumerate(krankheiten):
+            von = datetime.strptime(k["von"], "%Y-%m-%d").date()
+            bis = datetime.strptime(k["bis"], "%Y-%m-%d").date()
+            if von.year <= jahr <= bis.year:
+                gefiltert.append((index, k))
+
+        for original_index, k in gefiltert:
             row = ctk.CTkFrame(self.k_list_frame)
             row.pack(fill="x", pady=2, padx=5)
+
             v = datetime.strptime(k["von"], "%Y-%m-%d").strftime("%d.%m.%Y")
             b = datetime.strptime(k["bis"], "%Y-%m-%d").strftime("%d.%m.%Y")
-            ctk.CTkLabel(row, text=f"Krank: {v} bis {b}", width=300, anchor="w").pack(
+            anzeige = f"Krank: {v} bis {b}"
+            ctk.CTkLabel(row, text=anzeige, width=300, anchor="w").pack(
                 side="left", padx=10
             )
-            ctk.CTkButton(
+
+            btn_del = ctk.CTkButton(
                 row,
                 text="Löschen",
                 width=60,
                 fg_color="red",
-                command=lambda i=index: self.delete_krankheit(i),
-            ).pack(side="right", padx=10)
+                command=lambda i=original_index: self.delete_krankheit(i),
+            )
+            btn_del.pack(side="right", padx=10)
 
     def delete_krankheit(self, index):
         raw = lade_abwesenheiten_raw()
@@ -333,7 +400,7 @@ class ZeiterfassungApp(ctk.CTk):
         input_frame = ctk.CTkFrame(self.tab_arzt)
         input_frame.pack(fill="x", padx=10, pady=10)
         ctk.CTkLabel(input_frame, text="Datum:").grid(row=0, column=0, padx=10, pady=10)
-        self.entry_a_datum = ctk.CTkEntry(input_frame, placeholder_text="TT.MM.JJJJ")
+        self.entry_a_datum = self.create_date_entry(input_frame)
         self.entry_a_datum.grid(row=0, column=1, padx=5)
         ctk.CTkLabel(input_frame, text="Dauer (h):").grid(
             row=0, column=2, padx=10, pady=10
@@ -371,10 +438,22 @@ class ZeiterfassungApp(ctk.CTk):
             )
 
     def refresh_arzt_list(self):
+        from abwesenheiten import lade_abwesenheiten_raw
+
         for child in self.a_list_frame.winfo_children():
             child.destroy()
+
         raw = lade_abwesenheiten_raw()
-        for index, a in enumerate(raw.get("arzttermine_raw", [])):
+        termine = raw.get("arzttermine_raw", [])
+        jahr = self.aktuelles_jahr
+
+        gefiltert = []
+        for index, a in enumerate(termine):
+            datum = datetime.strptime(a["datum"], "%Y-%m-%d").date()
+            if datum.year == jahr:
+                gefiltert.append((index, a))
+
+        for original_index, a in gefiltert:
             row = ctk.CTkFrame(self.a_list_frame)
             row.pack(fill="x", pady=2, padx=5)
             d = datetime.strptime(a["datum"], "%Y-%m-%d").strftime("%d.%m.%Y")
@@ -386,7 +465,7 @@ class ZeiterfassungApp(ctk.CTk):
                 text="Löschen",
                 width=60,
                 fg_color="red",
-                command=lambda i=index: self.delete_arzt(i),
+                command=lambda i=original_index: self.delete_arzt(i),
             ).pack(side="right", padx=10)
 
     def delete_arzt(self, index):
@@ -528,7 +607,7 @@ class ZeiterfassungApp(ctk.CTk):
             self.cfg["start_montag"] = self.entry_start.get()
             soll_wert = float(self.entry_soll.get().replace(",", "."))
             self.cfg["soll_wochenstunden"] = soll_wert
-            self.cfg["start_saldo"] = float(self.entry_vortrag.get().replace(",", "."))
+            # self.cfg["start_saldo"] = float(self.entry_vortrag.get().replace(",", "."))
             if not self.cfg.get("zeitmodelle"):
                 start_iso = datetime.strptime(datum_str, "%d.%m.%Y").strftime(
                     "%Y-%m-%d"
@@ -567,21 +646,67 @@ class ZeiterfassungApp(ctk.CTk):
             )
             zeile.pack(fill="x", pady=2, padx=5)
 
+    def on_jahr_changed(self, choice):
+        jahr = int(choice)
+        self.setze_jahr(jahr)
+        # self.aktuelles_jahr = jahr
+        self.cfg["aktuelles_jahr"] = jahr
+        speichere_config(self.cfg)
+        # Startdatum auf ersten Montag des Jahres setzen
+        erster = date(jahr, 1, 1)
+        erster_montag = erster + timedelta(days=(7 - erster.weekday()) % 7)
+        self.entry_start.delete(0, "end")
+        self.entry_start.insert(0, erster_montag.strftime("%d.%m.%Y"))
+        self.load_and_refresh()
+
+    def setze_jahr(self, jahr: int):
+        """Aktualisiert das Jahr, setzt den ersten Montag und lädt die Daten."""
+        self.aktuelles_jahr = jahr
+        self.cfg["aktuelles_jahr"] = jahr
+        speichere_config(self.cfg)
+
+        # Ersten Montag des Jahres berechnen
+        erster = date(jahr, 1, 1)
+        erster_montag = erster + timedelta(days=(7 - erster.weekday()) % 7)
+
+        # UI- Felder aktualisieren
+        self.entry_start.delete(0, "end")
+        self.entry_start.insert(0, erster_montag.strftime("%d.%m.%Y"))
+
+        if self.combo_jahr.get() != str(jahr):
+            self.combo_jahr.set(str(jahr))
+
+        # Daten neu laden
+        self.load_and_refresh()
+
     def load_and_refresh(self):
         try:
             aktueller_pfad = self.entry_ordner.get()
-            aktuelles_startdatum = self.entry_start.get()
-            zeitmodelle = self.cfg.get("zeitmodelle")
+            jahres_start_str = self.entry_start.get()
+            jahres_start = datetime.strptime(jahres_start_str, "%d.%m.%Y").date()
+            if jahres_start.weekday() != 0:
+                jahres_start -= timedelta(days=jahres_start.weekday())
+
             soll_stunden = float(self.entry_soll.get().replace(",", "."))
             feiertags_faktor = float(self.cfg.get("feiertags_zuschlag_faktor", 1.0))
+            zeitmodelle_liste = self.cfg.get("zeitmodelle", [])
+
+            # Vortrag-Fallback immer 0 – die automatische Berechnung hat Vorrang
+            fallback_saldo = 0.0
+
             ergebnis = run_auswertung(
                 pdf_datei=aktueller_pfad,
-                startdatum=aktuelles_startdatum,
+                jahres_start=jahres_start,
                 sollstunden=soll_stunden,
-                start_saldo=float(self.cfg.get("start_saldo", 0.0)),
-                zeitmodelle_liste=zeitmodelle,
+                start_saldo_fallback=fallback_saldo,
+                zeitmodelle_liste=zeitmodelle_liste,
                 feiertags_zuschlag_faktor=feiertags_faktor,
             )
+
+            # Automatischen Vortrag nur anzeigen, nicht in Config speichern
+            self.entry_vortrag.delete(0, "end")
+            self.entry_vortrag.insert(0, f"{ergebnis['vortrag']:.2f}")
+
             self.fill_list(ergebnis["wochen"])
             self.lbl_gesamt_saldo.configure(
                 text=f"Gesamt-Saldo: {ergebnis['saldo']:.2f} h", text_color="#FFFFFF"

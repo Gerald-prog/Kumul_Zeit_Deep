@@ -230,44 +230,36 @@ def berechne_saldo(wochen: dict[date, WochenDaten], start_saldo: float = 0.0):
 def run_auswertung(
     *,
     pdf_datei: str,
-    startdatum: str,
+    jahres_start: date,
     sollstunden: float,
-    start_saldo: float,
+    start_saldo_fallback: float,
     zeitmodelle_liste=None,
     feiertags_zuschlag_faktor: float = 1.0,
 ) -> dict:
     pdf_path = Path(pdf_datei)
     if not pdf_path.exists():
         raise FileNotFoundError("PDF-Ordner nicht gefunden.")
-    start = parse_date_ddmmYYYY(startdatum)
-    if start.weekday() != 0:
-        raise ValueError("Startdatum muss ein Montag sein.")
+    if jahres_start.weekday() != 0:
+        raise ValueError("jahres_start muss ein Montag sein.")
 
     tages_ist = lade_tages_ist_aus_pdf_ordner(pdf_path)
+    if not tages_ist:
+        return {
+            "wochen": {},
+            "saldo": start_saldo_fallback,
+            "auszahlungen": {},
+            "vortrag": start_saldo_fallback,
+        }
+
     raw = lade_abwesenheiten_raw()
     urlaub, feiertage, krankheit, arzttermine = baue_abwesenheiten_core(raw)
     auszahlungen_raw = raw.get("auszahlungen_raw", {})
 
-    start_montag = start - timedelta(days=start.weekday())
+    gesamt_start = min(tages_ist.keys()) - timedelta(
+        days=min(tages_ist.keys()).weekday()
+    )
     wochen = baue_wochen_aus_tagen(tages_ist)
-
-    max_pdf_datum = max(tages_ist.keys()) if tages_ist else start_montag
-    for pdf_file in sorted(Path(pdf_datei).glob("*.pdf")):
-        match = re.search(r"(\d{4})\s+(\d{2})\s+(\d{2})", pdf_file.stem)
-        if match:
-            y, m, d = map(int, match.groups())
-            try:
-                dat = date(y, m, d)
-                if dat > max_pdf_datum:
-                    max_pdf_datum = dat
-            except ValueError:
-                pass
-
-    wochen = ergaenze_fehlende_wochen(wochen, start_montag, max_pdf_datum)
-
-    # wochen = ergaenze_fehlende_wochen(
-    #     wochen, start_montag, max(tages_ist.keys()) if tages_ist else start_montag
-    # )
+    wochen = ergaenze_fehlende_wochen(wochen, gesamt_start, max(tages_ist.keys()))
 
     ergaenze_wochen_um_soll_und_gutschriften(
         wochen=wochen,
@@ -277,28 +269,43 @@ def run_auswertung(
         krankheit=krankheit,
         arzttermine=arzttermine,
         zeitmodelle_liste=zeitmodelle_liste,
-        feiertags_zuschlag_faktor=feiertags_zuschlag_faktor,  # <-- nur dieser Parameter wird verwendet!
+        feiertags_zuschlag_faktor=feiertags_zuschlag_faktor,
     )
 
-    # Auszahlungen anwenden
     auszahlungen_pro_woche: dict[date, dict[str, float]] = {}
     for iso, kat_dict in auszahlungen_raw.items():
-        montag_von_iso = datetime.strptime(iso, "%Y-%m-%d").date()
-        montag_von_iso = montag_von_iso - timedelta(days=montag_von_iso.weekday())
-        auszahlungen_pro_woche[montag_von_iso] = kat_dict
+        m = datetime.strptime(iso, "%Y-%m-%d").date()
+        m = m - timedelta(days=m.weekday())
+        auszahlungen_pro_woche[m] = kat_dict
     wende_auszahlung_an(wochen, auszahlungen_pro_woche)
 
-    berechne_saldo(wochen, start_saldo)
+    # Gesamtsaldo für den gesamten Datenbestand (ab 0) berechnen
+    berechne_saldo(wochen, 0.0)
 
-    # Saldo der letzten Woche zurückgeben
-    if wochen:
-        letzter_montag = max(wochen.keys())
-        gesamt_saldo = wochen[letzter_montag].saldo
+    # Vortrag = Saldo der letzten Woche VOR dem Jahresstart
+    vor_wochen = {k: v for k, v in wochen.items() if k < jahres_start}
+    if vor_wochen:
+        letzte_vor = max(vor_wochen.keys())
+        vortrag = vor_wochen[letzte_vor].saldo
     else:
-        gesamt_saldo = start_saldo
+        vortrag = start_saldo_fallback
+
+    # Nur die Wochen des gewählten Jahres extrahieren und mit dem Vortrag neu saldieren
+    jahres_wochen = {
+        k: v
+        for k, v in wochen.items()
+        if k >= jahres_start and k.year == jahres_start.year
+    }
+    if jahres_wochen:
+        berechne_saldo(jahres_wochen, vortrag)
+        letzter_montag = max(jahres_wochen.keys())
+        gesamt_saldo = jahres_wochen[letzter_montag].saldo
+    else:
+        gesamt_saldo = vortrag
 
     return {
-        "wochen": wochen,
+        "wochen": jahres_wochen,
         "saldo": gesamt_saldo,
         "auszahlungen": auszahlungen_pro_woche,
+        "vortrag": vortrag,
     }
