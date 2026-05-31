@@ -10,6 +10,7 @@ from abwesenheiten import (
 from feiertage import lade_feiertage
 from pdf_ordner_loader import lade_tages_ist_aus_pdf_ordner
 from models import Tagesdaten, WochenDaten, Arbeitszeitrechner
+from zuschlaege import berechne_feiertags_zuschlag
 
 
 def parse_date_ddmmYYYY(s: str) -> date:
@@ -121,8 +122,10 @@ def ergaenze_wochen_um_soll_und_gutschriften(
                     ist_std = woche.tage[tag].ist
                     zuschlag = 0.0
                     if feiertags_zuschlag_faktor > 1.0:
-                        zuschlag = ist_std * (feiertags_zuschlag_faktor - 1.0)
-                    gutschriften["feiertag_zuschlag"] += ist_std + zuschlag
+                        zuschlag = berechne_feiertags_zuschlag(
+                            ist_std, feiertags_zuschlag_faktor
+                        )
+                    gutschriften["feiertag_zuschlag"] += zuschlag
                     feiertags_ist_summe += ist_std
                     woche.tage[tag].typ = "feiertag_gearbeitet"
                     woche.tage[tag].soll = 0.0

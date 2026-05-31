@@ -1,3 +1,6 @@
+import sys
+from pathlib import Path
+from PIL import Image, ImageTk
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 from datetime import date, datetime, timedelta
@@ -14,6 +17,7 @@ from config import lade_config, speichere_config
 from models import WochenDaten
 from feiertage import BUNDESLAENDER
 from tkcalendar import DateEntry
+import ctypes
 
 logging.basicConfig(level=logging.INFO)
 
@@ -103,10 +107,60 @@ class ZeiterfassungApp(ctk.CTk):
         self.title("Solera Zeit-Manager")
         self.geometry("1500x800")
         self.cfg = lade_config()
+
+        # --- Icon setzen (Taskleiste + Fenster) ---
+        try:
+            # Basisverzeichnis (Entwicklung oder PyInstaller)
+            if getattr(sys, "frozen", False):
+                base_dir = Path(getattr(sys, "_MEIPASS"))
+            else:
+                base_dir = Path(__file__).parent
+
+            # Icon-Dateiname aus config.json, Fallback auf "mein_icon.ico"
+            icon_name = self.cfg.get("icon", "mein_icon.ico") or "mein_icon.ico"
+
+            # Automatische Endung, falls keine angegeben
+            if not icon_name.lower().endswith((".ico", ".png")):
+                icon_name += ".ico" if sys.platform.startswith("win") else ".png"
+
+            ico_path = base_dir / icon_name
+
+            # 1. Für Windows: AppUserModelID setzen (wichtig für Taskleiste)
+            if sys.platform.startswith("win"):
+                # Eindeutige ID – du kannst "SoleraZeitManager" durch deinen Wunschnamen ersetzen
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+                    "SoleraZeitManager"
+                )
+
+            # 2. Icon-Datei laden und sowohl in der Titelleiste als auch Taskleiste setzen
+            if ico_path.exists():
+                # a) .ico für Windows-Titelleiste setzen
+                if sys.platform.startswith("win") and icon_name.endswith(".ico"):
+                    self.iconbitmap(default=str(ico_path))
+
+                # b) Zusätzlich als PhotoImage für die Taskleiste (funktioniert plattformübergreifend)
+                pil_img = Image.open(str(ico_path))
+                # Für .ico-Dateien nehmen wir das erste eingebettete Bild
+                if icon_name.endswith(".ico"):
+                    pil_img = pil_img.resize((64, 64))  # Größe anpassen, falls nötig
+                photo = ImageTk.PhotoImage(Image=pil_img)
+                self.iconphoto(
+                    True, photo  # type: ignore[reportArgumentType] <- Kommentierung notwendig
+                )
+                # True = setzt es als Standard-Icon für alle Fenster
+                # photo-> type: ignore[reportArgumentType] Inkombatilität zwischen tkinter und pillow
+
+                print(f"✅ Icon erfolgreich geladen: {ico_path}")
+            else:
+                print(f"⚠️ Icon nicht gefunden: {ico_path}")
+
+        except Exception as e:
+            print(f"❌ Fehler beim Laden des Icons: {e}")
+
         self.aktuelles_jahr = self.cfg.get("aktuelles_jahr", date.today().year)
         self.setup_ui()
         self.setze_jahr(self.aktuelles_jahr)  # Startet mit dem gespeicherten Jahr
-        # self.after(100, self.load_and_refresh)
+        self.focus_set()
         self.bind("<F5>", lambda event: self.load_and_refresh)
 
     def create_date_entry(self, master, initial_date=None, **kwargs):
@@ -626,6 +680,7 @@ class ZeiterfassungApp(ctk.CTk):
             if hasattr(self, "refresh_modelle_list"):
                 self.refresh_modelle_list()
             self.load_and_refresh()
+            self.focus_set()
         except Exception as e:
             logging.error(f"Fehler beim Speichern: {e}")
 
@@ -688,7 +743,8 @@ class ZeiterfassungApp(ctk.CTk):
                 jahres_start -= timedelta(days=jahres_start.weekday())
 
             soll_stunden = float(self.entry_soll.get().replace(",", "."))
-            feiertags_faktor = float(self.cfg.get("feiertags_zuschlag_faktor", 1.0))
+            zuschlaege = self.cfg.get("zuschlaege", {})
+            feiertags_faktor = float(zuschlaege.get("feiertag", 1.0))
             zeitmodelle_liste = self.cfg.get("zeitmodelle", [])
 
             # Vortrag-Fallback immer 0 – die automatische Berechnung hat Vorrang
@@ -711,6 +767,8 @@ class ZeiterfassungApp(ctk.CTk):
             self.lbl_gesamt_saldo.configure(
                 text=f"Gesamt-Saldo: {ergebnis['saldo']:.2f} h", text_color="#FFFFFF"
             )
+            self.focus_set()
+
         except Exception as e:
             logging.error(f"UI Load Error: {e}")
             self.fill_list({})
