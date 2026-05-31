@@ -105,7 +105,7 @@ class ZeiterfassungApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Solera Zeit-Manager")
-        self.geometry("1500x800")
+        self.geometry("900x800")
         self.cfg = lade_config()
 
         # --- Icon setzen (Taskleiste + Fenster) ---
@@ -765,8 +765,17 @@ class ZeiterfassungApp(ctk.CTk):
 
             self.fill_list(ergebnis["wochen"])
             self.lbl_gesamt_saldo.configure(
-                text=f"Gesamt-Saldo: {ergebnis['saldo']:.2f} h", text_color="#FFFFFF"
+                text=f"Gesamt-Saldo: {ergebnis['saldo']:.2f} h", text_color="#E3E66A"
             )
+            #  copyright-Label
+            self.lbl_copy_right = ctk.CTkLabel(
+                self.footer,
+                text=f"© {date.today().year} Gerald Günther",
+                font=("Roboto", 10),
+                text_color="gray60",
+            )
+            self.lbl_copy_right.pack(side="right", padx=20)
+
             self.focus_set()
 
         except Exception as e:

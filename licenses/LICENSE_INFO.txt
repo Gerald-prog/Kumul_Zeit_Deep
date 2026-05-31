@@ -1,0 +1,48 @@
+<!-- markdownlint-disable MD041 -->
+<!-- markdownlint-disable MD047 -->
+
+# License Information
+===================
+
+This application uses the following open source libraries.
+
+============================================================
+1. customtkinter
+   License: MIT
+   Copyright (c) 2023 Tom Schimansky
+   https://github.com/TomSchimansky/CustomTkinter
+
+2. tkcalendar
+   License: GPLv3
+   Copyright (c) 2018-2022 Juliette Monsel <juliette.monsel@mail.com>
+   https://github.com/j4321/tkcalendar
+   Full license text: licenses/gpl-3.0.txt
+
+3. pdfplumber
+   License: MIT
+   Copyright (c) 2019 Jeremy Singer-Vine
+   https://github.com/jsvine/pdfplumber
+
+4. holidays
+   License: MIT
+   Copyright (c) 2018-2024 Ryukyu Okinawa
+   https://github.com/vacanza/python-holidays
+
+5. pillow (PIL)
+   License: Historical Permission Notice and Disclaimer (HPND)
+   https://python-pillow.org/
+
+6. pdfminer.six (used by pdfplumber)
+   License: MIT
+   https://github.com/pdfminer/pdfminer.six
+
+7. pypdfium2 (used by pdfplumber)
+   License: Apache-2.0
+   https://github.com/pypdfium2-team/pypdfium2
+============================================================
+
+This software also includes components from the Python Standard Library,
+which is licensed under the Python Software Foundation License.
+https://docs.python.org/3/license.html
+
+Detailed license texts for GPLv3 and MIT can be found in the 'licenses' directory.
