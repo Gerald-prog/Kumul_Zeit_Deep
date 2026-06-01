@@ -38,7 +38,7 @@ In der Registerkarte „Wochenübersicht“ sehen Sie für jede Kalenderwoche ei
 **Feiertags‑Button (FT+)**  
 Wenn Sie an einem Feiertag gearbeitet haben, erscheint ein blauer Knopf mit der Beschriftung `FT+`. Die angezeigte Stundenzahl umfasst sowohl die tatsächlich geleistete Arbeitszeit als auch den konfigurierten Feiertagszuschlag.
 
-Mit einem Klick auf `FT+` zahlen Sie diese Stunden aus – sie werden vom Saldo abgezogen. Der Knopf wird orange und zeigt den ausgezahlten Betrag mit einem Häkchen an. Möchten Sie die Auszahlung rückgängig machen, klicken Sie erneut auf den Knopf. Die Stunden werden dann wieder dem Saldo gutgeschrieben. Der FT+‑Knopf erscheint nur dann, wenn an einem Feiertag tatsächlich gearbeitet wurde; für freie Feiertage wird kein Button angeboten.
+Mit einem Klick auf `FT+` wählen Sie diese Stunden als ausbezahlt aus, wenn diese finanziell abgegolten wurden – sie werden vom Saldo abgezogen. Der Knopf wird orange und zeigt die ausgezahlten Stunden mit einem Häkchen an. Möchten Sie die Auszahlung rückgängig machen, klicken Sie erneut auf den Knopf. Die Stunden werden dann wieder dem Saldo gutgeschrieben. Der FT+‑Knopf erscheint nur dann, wenn an einem Feiertag tatsächlich gearbeitet wurde. Für freie Feiertage wird kein Button angeboten.
 
 ---
 

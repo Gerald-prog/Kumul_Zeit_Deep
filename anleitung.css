@@ -1,0 +1,48 @@
+@page {
+    /*margin: 1.0cm 1.0cm 2.0cm 2.0cm; /*oben rechts links unten*/
+    /*margin:  0;*/
+}
+
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 12pt;
+    line-height: 1.5;
+    color: #333;
+    margin: 0.00cm;
+}
+
+h1 {
+    font-size: 20pt;
+    color: #1a5276;
+    border-bottom: 2px solid #1a5276;
+    padding-bottom: 5px;
+}
+
+h2 {
+    font-size: 16pt;
+    color: #2c3e50;
+    margin-top: 1.5em;
+}
+
+/* Hier ist jetzt alles für die Code-Schrift sauber zusammengefasst */
+code {
+    color: #1a5276 !important;
+    background-color: #f4f4f4 !important;
+    padding: 2px 4px !important;
+    border-radius: 3px !important;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Verhindert, dass Überschriften alleine am Seitenende stehen */
+h1, h2, h3 {
+    page-break-after: avoid;
+}
+
+/* Verhindert, dass Bilder oder Code-Blöcke mitten durchgerissen werden */
+img, code {
+    page-break-inside: avoid;
+}
