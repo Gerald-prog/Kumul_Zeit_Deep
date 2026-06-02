@@ -1,7 +1,7 @@
-# Solera Zeit-Manager
+# Zeit-Manager
 
 Eine lokale Anwendung zur Auswertung von PDF-Zeitkalendern und Verwaltung
-von Arbeitszeitkonten – entwickelt für Gerald Günther und seine Kollegen.
+von Arbeitszeitkonten.
 
 ## Features
 
