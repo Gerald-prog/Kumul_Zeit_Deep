@@ -4,4 +4,4 @@ venv/
 __pycache__/
 .env
 .vscode
-
+README_NUTZER.md
