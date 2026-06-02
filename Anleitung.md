@@ -75,9 +75,7 @@ Sobald Sie ein neues Jahr auswählen, springt das Start‑Montag‑Feld automati
 
 ## Feiertage und Zuschläge
 
-Über die Bibliothek `holidays` kennt die App die gesetzlichen Feiertage aller Bundesländer. Die Zuordnung erfolgt über das im Arbeitszeitmodell angegebene Bundesland. Zusätzlich können Sie in der Datei `abwesenheiten.json` manuelle Feiertage hinterlegen, beispielsweise Betriebsruhetage.
-
-Den Feiertagszuschlag konfigurieren Sie zentral in der Datei `config.json` unter dem Abschnitt `zuschlaege` und dem Schlüssel `feiertag`. Der Standardwert `1.25` bedeutet einen Zuschlag von 25 Prozent auf die tatsächlich gearbeiteten Stunden. Möchten Sie einen höheren oder niedrigeren Zuschlag, passen Sie diesen Wert einfach an.
+Über die Bibliothek `holidays` kennt die App die gesetzlichen Feiertage aller Bundesländer. Die Zuordnung erfolgt über das im Arbeitszeitmodell angegebene Bundesland.  
 
 An einem freien Feiertag erhalten Sie kein Soll und keine zusätzliche Gutschrift – der Saldo bleibt unverändert. An einem gearbeiteten Feiertag hingegen wird das Soll auf null gesetzt, die geleistete Arbeitszeit zuzüglich des Zuschlags gutgeschrieben und als FT+ ausgewiesen. Nur diese tatsächliche Feiertagsarbeit ist auszahlbar.
 

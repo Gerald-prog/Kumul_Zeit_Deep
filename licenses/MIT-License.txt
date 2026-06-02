@@ -1,7 +1,4 @@
-<!-- markdownlint-disable MD041 -->
-<!-- markdownlint-disable MD047 -->
-
-# License Information
+License Information
 ===================
 
 MIT License

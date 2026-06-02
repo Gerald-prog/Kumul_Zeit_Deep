@@ -142,8 +142,8 @@ class ZeiterfassungApp(ctk.CTk):
                 pil_img = Image.open(str(ico_path))
                 # Für .ico-Dateien nehmen wir das erste eingebettete Bild
                 if icon_name.endswith(".ico"):
-                    pil_img = pil_img.resize((64, 64))  # Größe anpassen, falls nötig
-                photo = ImageTk.PhotoImage(Image=pil_img)
+                    pil_img = pil_img.resize((128, 128))  # Größe anpassen, falls nötig
+                photo = ImageTk.PhotoImage(image=pil_img)
                 self.iconphoto(
                     True, photo  # type: ignore[reportArgumentType] <- Kommentierung notwendig
                 )
