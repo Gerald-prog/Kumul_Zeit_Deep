@@ -34,7 +34,7 @@ von Arbeitszeitkonten.
 ### Variante A – Quellcode (Entwickler)
 
 ```bash
-git clone <https://github.com/Gerald-prog/Kumul_Zeit_Deep>
+git clone https://github.com/Gerald-prog/Kumul_Zeit_Deep
 cd KUMUL_ZEIT_DEEP
 pip install -r requirements.txt
 python ui_desktop.py  
