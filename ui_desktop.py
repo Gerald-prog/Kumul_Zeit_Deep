@@ -18,6 +18,8 @@ from models import WochenDaten
 from feiertage import BUNDESLAENDER
 from tkcalendar import DateEntry
 import ctypes
+from fpdf import FPDF
+import tempfile, os, platform
 
 logging.basicConfig(level=logging.INFO)
 
@@ -29,6 +31,7 @@ class WochenZeile(ctk.CTkFrame):
         super().__init__(master, **kwargs)
         self.montag = montag
         self.on_update_callback = on_update_callback
+        self.aktuelle_wochen = {}  # nach jeder Berechnung befüllt für Papierausdruck
 
         # --- Datum/KW ---
         self.lbl_datum = ctk.CTkLabel(
@@ -190,60 +193,82 @@ class ZeiterfassungApp(ctk.CTk):
         self.settings_frame.pack(fill="x", padx=20, pady=10)
         self.settings_frame.grid_columnconfigure(1, weight=1)
 
+        # Zeile 0: PDF-Ordner
         ctk.CTkLabel(
-            self.settings_frame, text="PDF-Ordner:", font=("Roboto", 12, "bold")
-        ).grid(row=0, column=0, padx=10, pady=10)
-        self.entry_ordner = ctk.CTkEntry(self.settings_frame, width=400)
+            self.settings_frame,
+            text="PDF-Ordner:",
+            font=("Roboto", 12, "bold"),
+        ).grid(row=0, column=0, padx=10, pady=10, sticky="w")
+
+        self.entry_ordner = ctk.CTkEntry(self.settings_frame, width=300)
         self.entry_ordner.insert(0, self.cfg.get("ordner", ""))
         self.entry_ordner.grid(row=0, column=1, padx=10, pady=10, sticky="w")
-        ctk.CTkButton(
-            self.settings_frame, text="Ordner wählen", command=self.choose_folder
-        ).grid(row=0, column=2, padx=10, pady=10)
 
+        self.btn_browse = ctk.CTkButton(
+            self.settings_frame,
+            text="Ordner wählen",
+            width=180,
+            command=self.choose_folder,
+        )
+        self.btn_browse.grid(row=0, column=2, padx=10, pady=10)
+
+        # Zeile 1: Start-Montag + Speichern
         ctk.CTkLabel(
             self.settings_frame, text="Start-Montag:", font=("Roboto", 12, "bold")
         ).grid(row=1, column=0, padx=10, pady=10, sticky="w")
-        self.entry_start = self.create_date_entry(  # ctk.CTkEntry(self.settings_frame)
+
+        self.entry_start = self.create_date_entry(
             self.settings_frame,
             initial_date=self.cfg.get("start_montag", f"01.01.{date.today().year}"),
         )
-
-        # self.entry_start.insert(
-        #     0, self.cfg.get("start_montag", f"01.01.{date.today().year}")
-        # )
         self.entry_start.grid(row=1, column=1, padx=10, pady=10, sticky="w")
 
+        self.btn_save_settings = ctk.CTkButton(
+            self.settings_frame,
+            text="Übernehmen & Speichern",
+            fg_color="green",
+            width=180,
+            command=self.save_and_reload,
+        )
+        self.btn_save_settings.grid(row=1, column=2, padx=10, pady=10)
+
+        # Zeile 2: Soll-Stunden + PDF-Button
+        ctk.CTkLabel(
+            self.settings_frame, text="Soll-Stunden/Woche:", font=("Roboto", 12, "bold")
+        ).grid(row=2, column=0, padx=10, pady=10, sticky="w")
+
+        self.entry_soll = ctk.CTkEntry(self.settings_frame, width=60)
+        self.entry_soll.insert(0, str(self.cfg.get("soll_wochenstunden", 40)))
+        self.entry_soll.grid(row=2, column=1, padx=10, pady=10, sticky="w")
+
+        self.btn_pdf = ctk.CTkButton(
+            self.settings_frame,
+            text="PDF erstellen",
+            width=180,
+            command=self.exportiere_pdf,
+        )
+        self.btn_pdf.grid(row=2, column=2, padx=10, pady=10)
+
+        # Zeile 3: Saldo-Vortrag
+        ctk.CTkLabel(
+            self.settings_frame, text="Saldo-Vortrag (h):", font=("Roboto", 12, "bold")
+        ).grid(row=3, column=0, padx=10, pady=10, sticky="w")
+
+        self.entry_vortrag = ctk.CTkEntry(self.settings_frame, width=60)
+        self.entry_vortrag.insert(0, str(self.cfg.get("start_saldo", 0.0)))
+        self.entry_vortrag.grid(row=3, column=1, padx=10, pady=10, sticky="w")
+
+        # Zeile 4: Jahr (kein Button)
         ctk.CTkLabel(
             self.settings_frame, text="Jahr:", font=("Roboto", 12, "bold")
         ).grid(row=4, column=0, padx=10, pady=10, sticky="w")
+
         self.combo_jahr = ctk.CTkComboBox(
             self.settings_frame, values=[str(y) for y in range(2025, 2031)]
         )
         self.combo_jahr.set(str(self.aktuelles_jahr))
         self.combo_jahr.grid(row=4, column=1, padx=10, pady=10, sticky="w")
         self.combo_jahr.configure(command=self.on_jahr_changed)
-
-        ctk.CTkLabel(
-            self.settings_frame, text="Soll-Stunden/Woche:", font=("Roboto", 12, "bold")
-        ).grid(row=2, column=0, padx=10, pady=10, sticky="w")
-        self.entry_soll = ctk.CTkEntry(self.settings_frame, width=60)
-        self.entry_soll.insert(0, str(self.cfg.get("soll_wochenstunden", 40)))
-        self.entry_soll.grid(row=2, column=1, padx=10, pady=10, sticky="w")
-
-        ctk.CTkLabel(
-            self.settings_frame, text="Saldo-Vortrag (h):", font=("Roboto", 12, "bold")
-        ).grid(row=3, column=0, padx=10, pady=10, sticky="w")
-        self.entry_vortrag = ctk.CTkEntry(self.settings_frame, width=60)
-        self.entry_vortrag.insert(0, str(self.cfg.get("start_saldo", 0.0)))
-        self.entry_vortrag.grid(row=3, column=1, padx=10, pady=10, sticky="w")
-
-        self.btn_save_settings = ctk.CTkButton(
-            self.settings_frame,
-            text="Übernehmen & Speichern",
-            fg_color="green",
-            command=self.save_and_reload,
-        )
-        self.btn_save_settings.grid(row=1, column=2, padx=10, pady=10)
 
         # Footer
         self.footer = ctk.CTkFrame(self, height=60)
@@ -764,6 +789,7 @@ class ZeiterfassungApp(ctk.CTk):
             self.entry_vortrag.insert(0, f"{ergebnis['vortrag']:.2f}")
 
             self.fill_list(ergebnis["wochen"])
+            self.aktuelle_wochen = ergebnis["wochen"]
             self.lbl_gesamt_saldo.configure(
                 text=f"Gesamt-Saldo: {ergebnis['saldo']:.2f} h", text_color="#E3E66A"
             )
@@ -788,6 +814,74 @@ class ZeiterfassungApp(ctk.CTk):
     def handle_payment_action(self, montag: date, stunden: float, kategorie: str):
         speichere_auszahlung(montag, kategorie, stunden)
         self.load_and_refresh()
+
+    def exportiere_pdf(self):
+        """
+        Erzeugt eine PDF‑Tabelle der aktuellen Wochenübersicht und öffnet sie.
+
+        """
+
+        if not self.aktuelle_wochen:
+            messagebox.showinfo("Keine Daten", "Bitte zuerst eine Auswertung laden.")
+            return
+
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Helvetica", size=10)
+
+        # Titel
+        jahr = self.aktuelles_jahr
+        name = self.cfg.get("nutzer_name", "Zeiterfassung")
+        pdf.cell(0, 10, f"Arbeitszeitkonto {jahr} - {name}", align="C")
+        pdf.ln(10)
+
+        # Tabellenkopf
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(32, 7, "KW ab", border=1)
+        pdf.cell(22, 7, "Ist (h)", border=1)
+        pdf.cell(22, 7, "Soll (h)", border=1)
+        pdf.cell(22, 7, "Diff (h)", border=1)
+        pdf.cell(22, 7, "Saldo (h)", border=1)
+        pdf.cell(58, 7, "Bemerkungen", border=1)
+        pdf.ln()
+
+        # Datenzeilen
+        pdf.set_font("Helvetica", size=9)
+        for montag in sorted(self.aktuelle_wochen.keys()):
+            w = self.aktuelle_wochen[montag]
+            ist = w.ist_stunden
+            soll = w.soll_stunden
+            diff = w.diff
+            saldo = w.saldo
+            bemerkungen = ", ".join(w.feiertags_namen) if w.feiertags_namen else ""
+            pdf.cell(32, 6, montag.strftime("%d.%m.%Y"), border=1)
+            pdf.cell(22, 6, f"{ist:.2f}", border=1)
+            pdf.cell(22, 6, f"{soll:.2f}", border=1)
+            pdf.cell(22, 6, f"{diff:+.2f}", border=1)
+            pdf.cell(22, 6, f"{saldo:.2f}", border=1)
+            pdf.cell(58, 6, bemerkungen, border=1)
+            pdf.ln()
+
+        # Gesamtsaldo (letzte Woche)
+        if self.aktuelle_wochen:
+            letzte_woche = self.aktuelle_wochen[max(self.aktuelle_wochen.keys())]
+            gesamtsaldo = letzte_woche.saldo
+            pdf.ln(5)
+            pdf.set_font("Helvetica", "B", 10)
+            pdf.cell(0, 10, f"Gesamtsaldo am Jahresende: {gesamtsaldo:.2f} h")
+            pdf.ln()
+
+        # Temporäre PDF erstellen und öffnen
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            pdf.output(tmp.name)
+            temp_pfad = tmp.name
+
+        if platform.system() == "Windows":
+            os.startfile(temp_pfad)
+        elif platform.system() == "Darwin":
+            os.system(f'open "{temp_pfad}"')
+        else:
+            os.system(f'xdg-open "{temp_pfad}"')
 
 
 if __name__ == "__main__":
