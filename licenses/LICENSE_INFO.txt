@@ -36,10 +36,15 @@ This application uses the following open source libraries.
 7. pypdfium2 (used by pdfplumber)
    License: Apache-2.0
    https://github.com/pypdfium2-team/pypdfium2
+
+8. fpdf2
+   License: LGPL-3.0-only
+   https://py-pdf.github.io/fpdf2/
+   Full license text: licenses/lgpl-3.0.txt (Note: LGPLv3 requires licenses/gpl-3.0.txt)
 ============================================================
 
 This software also includes components from the Python Standard Library,
 which is licensed under the Python Software Foundation License.
 https://docs.python.org/3/license.html
 
-Detailed license texts for GPLv3 and MIT can be found in the 'licenses' directory.
+Detailed license texts for GPLv3, LGPLv3, and MIT can be found in the 'licenses' directory.
