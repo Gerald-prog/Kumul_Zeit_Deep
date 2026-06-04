@@ -36,7 +36,8 @@ This application uses the following open source libraries.
 7. pypdfium2 (used by pdfplumber)
    License: Apache-2.0
    https://github.com/pypdfium2-team/pypdfium2
-   Full license text: licenses/apache-2.0.txt - https://www.apache.org/licenses/LICENSE-2.0.txt
+   Full license text: licenses/apache-2.0.txt 
+   https://www.apache.org/licenses/LICENSE-2.0.txt
 
 8. fpdf2
    License: LGPL-3.0-only
