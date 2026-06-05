@@ -5,3 +5,4 @@ __pycache__/
 .env
 .vscode
 README_NUTZER.md
+config.json
