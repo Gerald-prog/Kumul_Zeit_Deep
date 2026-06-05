@@ -28,14 +28,23 @@ class WochenZeile(ctk.CTkFrame):
     def __init__(
         self, master, montag, daten: WochenDaten, on_update_callback, **kwargs
     ):
-        super().__init__(master, **kwargs)
+        # Standard-Farben setzen, falls nicht über kwargs übergeben
+        # Entferne evtl. mitgegebene Farben, die wir selbst setzen
+        kwargs.pop("fg_color", None)
+        kwargs.pop("bg_color", None)
+        kwargs.pop("text_color", None)  # <- verhindert Weitergabe an CTkFrame
+        super().__init__(master, fg_color="#1f1257", corner_radius=6, **kwargs)
         self.montag = montag
         self.on_update_callback = on_update_callback
         self.aktuelle_wochen = {}  # nach jeder Berechnung befüllt für Papierausdruck
 
         # --- Datum/KW ---
         self.lbl_datum = ctk.CTkLabel(
-            self, text=f"KW ab {montag.strftime('%d.%m.%Y')}", width=140
+            self,
+            text=f"KW ab {montag.strftime('%d.%m.%Y')}",
+            width=140,
+            fg_color="transparent",
+            text_color="#e0e0e0",
         )
         self.lbl_datum.pack(side="left", padx=10)
 
@@ -43,7 +52,11 @@ class WochenZeile(ctk.CTkFrame):
         ist = daten.ist_stunden
         soll = daten.soll_stunden
         self.lbl_werte = ctk.CTkLabel(
-            self, text=f"Ist: {ist:.2f}h | Soll: {soll:.2f}h", width=220
+            self,
+            text=f"Ist: {ist:.2f}h | Soll: {soll:.2f}h",
+            width=220,
+            fg_color="transparent",
+            text_color="#e0e0e0",
         )
         self.lbl_werte.pack(side="left", padx=10)
 
@@ -52,10 +65,11 @@ class WochenZeile(ctk.CTkFrame):
         color = "#4ADE80" if diff >= 0 else "#F87171"
         self.lbl_diff = ctk.CTkLabel(
             self,
-            text=f"Diff: {diff:+.2f}",
+            text=f"{diff:+.2f}",  # bei Bedarf Diff: vor {} setzen
             text_color=color,
             font=("Roboto", 12, "bold"),
             width=90,
+            fg_color="transparent",
         )
         self.lbl_diff.pack(side="left", padx=10)
 
@@ -66,14 +80,20 @@ class WochenZeile(ctk.CTkFrame):
                 self,
                 text=feiertags_text,
                 font=("Roboto", 12),
-                text_color="gray70",
+                text_color="#b0b0b0",
+                fg_color="transparent",
                 anchor="w",
             )
             self.lbl_feiertage.pack(side="left", padx=10)
 
         # --- Saldo (ganz rechts) ---
         self.lbl_saldo = ctk.CTkLabel(
-            self, text=f"Σ {daten.saldo:.2f}", width=100, anchor="e"
+            self,
+            text=f"Σ {daten.saldo:.2f}",
+            width=100,
+            anchor="e",
+            fg_color="transparent",
+            text_color="#e0e0e0",
         )
         self.lbl_saldo.pack(side="right", padx=(0, 15))
 
@@ -108,7 +128,8 @@ class ZeiterfassungApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Solera Zeit-Manager")
-        self.geometry("900x800")
+        self.geometry("1100x800")
+        self.configure(fg_color="#180b49")
         self.cfg = lade_config()
 
         # --- Icon setzen (Taskleiste + Fenster) ---
@@ -130,7 +151,7 @@ class ZeiterfassungApp(ctk.CTk):
 
             # 1. Für Windows: AppUserModelID setzen (wichtig für Taskleiste)
             if sys.platform.startswith("win"):
-                # Eindeutige ID – du kannst "SoleraZeitManager" durch deinen Wunschnamen ersetzen
+                # Eindeutige ID
                 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
                     "SoleraZeitManager"
                 )
@@ -179,7 +200,7 @@ class ZeiterfassungApp(ctk.CTk):
             background="darkblue",
             foreground="white",
             borderwidth=2,
-            date_pattern="dd.MM.yyyy",  # Deutsches Format
+            date_pattern="dd.MM.yyyy",  # D-A-CH Format
             year=initial_date.year,
             month=initial_date.month,
             day=initial_date.day,
@@ -189,7 +210,7 @@ class ZeiterfassungApp(ctk.CTk):
 
     def setup_ui(self):
         # Einstellungsbereich
-        self.settings_frame = ctk.CTkFrame(self)
+        self.settings_frame = ctk.CTkFrame(self, fg_color="#180b49")
         self.settings_frame.pack(fill="x", padx=20, pady=10)
         self.settings_frame.grid_columnconfigure(1, weight=1)
 
@@ -200,17 +221,19 @@ class ZeiterfassungApp(ctk.CTk):
             font=("Roboto", 12, "bold"),
         ).grid(row=0, column=0, padx=10, pady=10, sticky="w")
 
-        self.entry_ordner = ctk.CTkEntry(self.settings_frame, width=300)
+        self.entry_ordner = ctk.CTkEntry(self.settings_frame, width=400)
         self.entry_ordner.insert(0, self.cfg.get("ordner", ""))
         self.entry_ordner.grid(row=0, column=1, padx=10, pady=10, sticky="w")
 
         self.btn_browse = ctk.CTkButton(
             self.settings_frame,
             text="Ordner wählen",
+            fg_color="#553FA5",
+            hover_color="#662BD4",
             width=180,
             command=self.choose_folder,
         )
-        self.btn_browse.grid(row=0, column=2, padx=10, pady=10)
+        self.btn_browse.grid(row=0, column=3, padx=10, pady=10)
 
         # Zeile 1: Start-Montag + Speichern
         ctk.CTkLabel(
@@ -226,11 +249,12 @@ class ZeiterfassungApp(ctk.CTk):
         self.btn_save_settings = ctk.CTkButton(
             self.settings_frame,
             text="Übernehmen & Speichern",
-            fg_color="green",
+            fg_color="#553FA5",
+            hover_color="#662BD4",
             width=180,
             command=self.save_and_reload,
         )
-        self.btn_save_settings.grid(row=1, column=2, padx=10, pady=10)
+        self.btn_save_settings.grid(row=1, column=3, padx=10, pady=10)
 
         # Zeile 2: Soll-Stunden + PDF-Button
         ctk.CTkLabel(
@@ -244,10 +268,12 @@ class ZeiterfassungApp(ctk.CTk):
         self.btn_pdf = ctk.CTkButton(
             self.settings_frame,
             text="PDF erstellen",
+            fg_color="#553FA5",
+            hover_color="#662BD4",
             width=180,
             command=self.exportiere_pdf,
         )
-        self.btn_pdf.grid(row=2, column=2, padx=10, pady=10)
+        self.btn_pdf.grid(row=2, column=3, padx=10, pady=10)
 
         # Zeile 3: Saldo-Vortrag
         ctk.CTkLabel(
@@ -264,14 +290,23 @@ class ZeiterfassungApp(ctk.CTk):
         ).grid(row=4, column=0, padx=10, pady=10, sticky="w")
 
         self.combo_jahr = ctk.CTkComboBox(
-            self.settings_frame, values=[str(y) for y in range(2025, 2031)]
+            self.settings_frame, values=[str(y) for y in range(2024, 2031)]
         )
         self.combo_jahr.set(str(self.aktuelles_jahr))
         self.combo_jahr.grid(row=4, column=1, padx=10, pady=10, sticky="w")
         self.combo_jahr.configure(command=self.on_jahr_changed)
 
+        # Name rechts neben Jahr platzieren
+        ctk.CTkLabel(
+            self.settings_frame, text="Name:", font=("Roboto", 12, "bold"), width=160
+        ).grid(row=4, column=2, padx=10, pady=10, sticky="w")
+
+        self.entry_name = ctk.CTkEntry(self.settings_frame, width=180)
+        self.entry_name.insert(0, self.cfg.get("nutzer_name", ""))
+        self.entry_name.grid(row=4, column=3, padx=10, pady=10, sticky="w")
+
         # Footer
-        self.footer = ctk.CTkFrame(self, height=60)
+        self.footer = ctk.CTkFrame(self, height=60, fg_color="#180b49")
         self.footer.pack(fill="x", side="bottom", padx=20, pady=20)
         self.lbl_gesamt_saldo = ctk.CTkLabel(
             self.footer, text="Gesamt-Saldo: --", font=("Roboto", 18, "bold")
@@ -279,7 +314,18 @@ class ZeiterfassungApp(ctk.CTk):
         self.lbl_gesamt_saldo.pack(side="left", padx=20)
 
         # Tabs
-        self.tabs = ctk.CTkTabview(self)
+        self.tabs = ctk.CTkTabview(
+            self,
+            fg_color="#180b49",
+            segmented_button_fg_color="#1f1257",  # Leistenhintergrund (etwas heller)
+            segmented_button_selected_color="#2d236e",  # aktiver Tab
+            segmented_button_unselected_color="#1f1257",  # inaktiver Tab
+            segmented_button_selected_hover_color="#3a2f80",
+            segmented_button_unselected_hover_color="#2a1f60",
+            border_width=2,
+            border_color="#4a3a8c",  # heller Rand für Relief
+            corner_radius=10,
+        )
         self.tabs.pack(fill="both", expand=True, padx=20, pady=10)
         self.tab_uebersicht = self.tabs.add("Wochenübersicht")
         self.tab_urlaub = self.tabs.add("Urlaub")
@@ -288,7 +334,7 @@ class ZeiterfassungApp(ctk.CTk):
         self.tab_modelle = self.tabs.add("Arbeitszeit-Modelle")
 
         self.scroll_frame = ctk.CTkScrollableFrame(
-            self.tab_uebersicht, width=1050, height=450
+            self.tab_uebersicht, width=1050, height=450, fg_color="#180b49"
         )
         self.scroll_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
@@ -296,22 +342,48 @@ class ZeiterfassungApp(ctk.CTk):
         self.setup_krankheit_tab()
         self.setup_arzt_tab()
         self.setup_modelle_tab()
+
         self.bind("<Return>", lambda event: self.save_and_reload())
 
     def setup_urlaub_tab(self):
-        input_frame = ctk.CTkFrame(self.tab_urlaub)
+        input_frame = ctk.CTkFrame(self.tab_urlaub, fg_color="#1f1257")
         input_frame.pack(fill="x", padx=10, pady=10)
-        ctk.CTkLabel(input_frame, text="Von:").grid(row=0, column=0, padx=5, pady=10)
+
+        # Labels
+        ctk.CTkLabel(
+            input_frame,
+            text="Von:",
+            font=("Roboto", 12, "bold"),
+            fg_color="transparent",
+            text_color="#e0e0e0",
+        ).grid(row=0, column=0, padx=5, pady=10)
+        ctk.CTkLabel(
+            input_frame,
+            text="Bis:",
+            font=("Roboto", 12, "bold"),
+            fg_color="transparent",
+            text_color="#e0e0e0",
+        ).grid(row=0, column=2, padx=5, pady=10)
+
         self.entry_u_von = self.create_date_entry(input_frame)
         self.entry_u_von.grid(row=0, column=1, padx=5)
-        ctk.CTkLabel(input_frame, text="Bis:").grid(row=0, column=2, padx=5, pady=10)
         self.entry_u_bis = self.create_date_entry(input_frame)
         self.entry_u_bis.grid(row=0, column=3, padx=5)
+
         ctk.CTkButton(
-            input_frame, text="Urlaub speichern", command=self.add_urlaub
+            input_frame,
+            text="Urlaub speichern",
+            fg_color="#3a2f80",
+            hover_color="#2d236e",
+            command=self.add_urlaub,
         ).grid(row=0, column=4, padx=20)
+
         self.u_list_frame = ctk.CTkScrollableFrame(
-            self.tab_urlaub, label_text="Geplanter Urlaub"
+            self.tab_urlaub,
+            fg_color="#180b49",
+            label_text="Urlaub",
+            label_fg_color="#180b49",
+            label_text_color="#e0e0e0",
         )
         self.u_list_frame.pack(fill="both", expand=True, padx=10, pady=10)
         self.refresh_urlaub_list()
@@ -350,7 +422,7 @@ class ZeiterfassungApp(ctk.CTk):
                 gefiltert.append((index, u))
 
         for original_index, u in gefiltert:
-            row = ctk.CTkFrame(self.u_list_frame)
+            row = ctk.CTkFrame(self.u_list_frame, fg_color="#1f1257")
             row.pack(fill="x", pady=2)
             txt = f"{u['von']} bis {u['bis']}"
             ctk.CTkLabel(row, text=txt, width=300).pack(side="left", padx=10)
@@ -373,29 +445,54 @@ class ZeiterfassungApp(ctk.CTk):
             self.load_and_refresh()
 
     def setup_krankheit_tab(self):
-        input_frame = ctk.CTkFrame(self.tab_krank)
+        input_frame = ctk.CTkFrame(self.tab_krank, fg_color="#1f1257")
         input_frame.pack(fill="x", padx=10, pady=10)
-        ctk.CTkLabel(input_frame, text="Krank von:").grid(
-            row=0, column=0, padx=10, pady=10
-        )
+
+        ctk.CTkLabel(
+            input_frame,
+            text="Krank von:",
+            font=("Roboto", 12, "bold"),
+            fg_color="transparent",
+            text_color="#e0e0e0",
+        ).grid(row=0, column=0, padx=10, pady=10)
         self.entry_k_von = self.create_date_entry(input_frame)
         self.entry_k_von.grid(row=0, column=1, padx=5)
-        ctk.CTkLabel(input_frame, text="bis:").grid(row=0, column=2, padx=10, pady=10)
+
+        ctk.CTkLabel(
+            input_frame,
+            text="bis:",
+            font=("Roboto", 12, "bold"),
+            fg_color="transparent",
+            text_color="#e0e0e0",
+        ).grid(row=0, column=2, padx=10, pady=10)
         self.entry_k_bis = self.create_date_entry(input_frame)
         self.entry_k_bis.grid(row=0, column=3, padx=5)
-        ctk.CTkLabel(input_frame, text="Trotzdem gearbeitet (h):").grid(
-            row=1, column=0, padx=10, pady=10
-        )
+
+        ctk.CTkLabel(
+            input_frame,
+            text="Trotzdem gearbeitet (h):",
+            font=("Roboto", 11, "italic"),
+            fg_color="transparent",
+            text_color="#e0e0e0",
+        ).grid(row=1, column=0, padx=10, pady=10)
         self.entry_k_ist = ctk.CTkEntry(input_frame, placeholder_text="0.0", width=80)
         self.entry_k_ist.grid(row=1, column=1, padx=5, sticky="w")
+
         ctk.CTkButton(
             input_frame,
             text="Krankheit speichern",
-            fg_color="#E11D48",
+            fg_color="#3a2f80",
+            hover_color="#2d236e",
             command=self.add_krankheit,
         ).grid(row=1, column=3, padx=20, pady=10)
+
         self.k_list_frame = ctk.CTkScrollableFrame(
-            self.tab_krank, height=300, label_text="Erfasste Krankmeldungen"
+            self.tab_krank,
+            height=300,
+            fg_color="#180b49",
+            label_text="Erfasste Krankmeldungen",
+            label_fg_color="#180b49",
+            label_text_color="#e0e0e0",
         )
         self.k_list_frame.pack(fill="both", expand=True, padx=10, pady=10)
         self.refresh_krank_list()
@@ -448,7 +545,7 @@ class ZeiterfassungApp(ctk.CTk):
                 gefiltert.append((index, k))
 
         for original_index, k in gefiltert:
-            row = ctk.CTkFrame(self.k_list_frame)
+            row = ctk.CTkFrame(self.k_list_frame, fg_color="#1f1257")
             row.pack(fill="x", pady=2, padx=5)
 
             v = datetime.strptime(k["von"], "%Y-%m-%d").strftime("%d.%m.%Y")
@@ -476,23 +573,46 @@ class ZeiterfassungApp(ctk.CTk):
             self.load_and_refresh()
 
     def setup_arzt_tab(self):
-        input_frame = ctk.CTkFrame(self.tab_arzt)
+        input_frame = ctk.CTkFrame(self.tab_arzt, fg_color="#1f1257")
         input_frame.pack(fill="x", padx=10, pady=10)
-        ctk.CTkLabel(input_frame, text="Datum:").grid(row=0, column=0, padx=10, pady=10)
+
+        ctk.CTkLabel(
+            input_frame,
+            text="Datum:",
+            font=("Roboto", 12, "bold"),
+            fg_color="transparent",
+            text_color="#e0e0e0",
+        ).grid(row=0, column=0, padx=10, pady=10)
         self.entry_a_datum = self.create_date_entry(input_frame)
         self.entry_a_datum.grid(row=0, column=1, padx=5)
-        ctk.CTkLabel(input_frame, text="Dauer (h):").grid(
-            row=0, column=2, padx=10, pady=10
-        )
+
+        ctk.CTkLabel(
+            input_frame,
+            text="Dauer (h):",
+            font=("Roboto", 12, "bold"),
+            fg_color="transparent",
+            text_color="#e0e0e0",
+        ).grid(row=0, column=2, padx=10, pady=10)
         self.entry_a_dauer = ctk.CTkEntry(
             input_frame, placeholder_text="z.B. 2.5", width=80
         )
         self.entry_a_dauer.grid(row=0, column=3, padx=5)
+
         ctk.CTkButton(
-            input_frame, text="Termin speichern", command=self.add_arzttermin
+            input_frame,
+            text="Termin speichern",
+            fg_color="#3a2f80",
+            hover_color="#2d236e",
+            command=self.add_arzttermin,
         ).grid(row=0, column=4, padx=20)
+
         self.a_list_frame = ctk.CTkScrollableFrame(
-            self.tab_arzt, height=300, label_text="Erfasste Arzttermine"
+            self.tab_arzt,
+            height=300,
+            fg_color="#180b49",
+            label_text="Erfasste Arzttermine",
+            label_fg_color="#180b49",
+            label_text_color="#e0e0e0",
         )
         self.a_list_frame.pack(fill="both", expand=True, padx=10, pady=10)
         self.refresh_arzt_list()
@@ -533,7 +653,7 @@ class ZeiterfassungApp(ctk.CTk):
                 gefiltert.append((index, a))
 
         for original_index, a in gefiltert:
-            row = ctk.CTkFrame(self.a_list_frame)
+            row = ctk.CTkFrame(self.a_list_frame, fg_color="#1f1257")
             row.pack(fill="x", pady=2, padx=5)
             d = datetime.strptime(a["datum"], "%Y-%m-%d").strftime("%d.%m.%Y")
             ctk.CTkLabel(
@@ -556,41 +676,65 @@ class ZeiterfassungApp(ctk.CTk):
             self.load_and_refresh()
 
     def setup_modelle_tab(self):
-        input_frame = ctk.CTkFrame(self.tab_modelle)
+        input_frame = ctk.CTkFrame(self.tab_modelle, fg_color="#1f1257")
         input_frame.pack(padx=20, pady=20, fill="x")
-        ctk.CTkLabel(input_frame, text="Ab Datum (JJJJ-MM-TT):").grid(
-            row=0, column=0, padx=10, pady=10
-        )
+
+        ctk.CTkLabel(
+            input_frame,
+            text="Ab Datum (JJJJ-MM-TT):",
+            font=("Roboto", 12, "bold"),
+            fg_color="transparent",
+            text_color="#e0e0e0",
+        ).grid(row=0, column=0, padx=10, pady=10)
         self.ent_modell_start = ctk.CTkEntry(input_frame, placeholder_text="2024-01-01")
         self.ent_modell_start.insert(0, f"{date.today().year}-01-01")
         self.ent_modell_start.grid(row=0, column=1, padx=10, pady=10)
-        ctk.CTkLabel(input_frame, text="Bundesland:").grid(
-            row=0, column=2, padx=10, pady=10
-        )
+
+        ctk.CTkLabel(
+            input_frame,
+            text="Bundesland:",
+            font=("Roboto", 12, "bold"),
+            fg_color="transparent",
+            text_color="#e0e0e0",
+        ).grid(row=0, column=2, padx=10, pady=10)
         self.cb_bundesland = ctk.CTkComboBox(
             input_frame, values=list(BUNDESLAENDER.keys())
         )
         self.cb_bundesland.set("Sachsen")
         self.cb_bundesland.grid(row=0, column=3, padx=10, pady=10)
+
         tage_container = ctk.CTkFrame(input_frame, fg_color="transparent")
         tage_container.grid(row=1, column=0, columnspan=4, pady=20)
         self.tag_entries = {}
         for i, name in enumerate(["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]):
             v_frame = ctk.CTkFrame(tage_container, fg_color="transparent")
             v_frame.pack(side="left", padx=5)
-            ctk.CTkLabel(v_frame, text=name, font=("Roboto", 10)).pack()
+            ctk.CTkLabel(
+                v_frame,
+                text=name,
+                font=("Roboto", 10),
+                fg_color="transparent",
+                text_color="#e0e0e0",
+            ).pack()
             ent = ctk.CTkEntry(v_frame, width=50)
             ent.insert(0, "8.0" if i < 5 else "0.0")
             ent.pack()
             self.tag_entries[str(i)] = ent
+
         ctk.CTkButton(
             input_frame,
             text="Neues Modell speichern",
-            fg_color="green",
+            fg_color="#3a2f80",
+            hover_color="#2d236e",
             command=self.add_zeitmodell,
         ).grid(row=2, column=0, columnspan=4, pady=20)
+
         self.modelle_list_frame = ctk.CTkScrollableFrame(
-            self.tab_modelle, label_text="Gespeicherte Arbeitszeit-Historie"
+            self.tab_modelle,
+            fg_color="#180b49",
+            label_text="Gespeicherte Arbeitszeit-Historie",
+            label_fg_color="#180b49",
+            label_text_color="#e0e0e0",
         )
         self.modelle_list_frame.pack(padx=20, pady=10, fill="both", expand=True)
         self.refresh_modelle_list()
@@ -630,7 +774,7 @@ class ZeiterfassungApp(ctk.CTk):
             child.destroy()
         modelle = self.cfg.get("zeitmodelle", [])
         for index, m in enumerate(modelle):
-            row = ctk.CTkFrame(self.modelle_list_frame)
+            row = ctk.CTkFrame(self.modelle_list_frame, fg_color="#1f1257")
             row.pack(fill="x", pady=2, padx=5)
             info = f"Ab {m['gueltig_ab']} | {m['bundesland']} | Mo-Fr: {m['tagessoll']['0']}h..."
             ctk.CTkLabel(row, text=info, anchor="w").pack(
@@ -663,6 +807,7 @@ class ZeiterfassungApp(ctk.CTk):
         self.entry_start.delete(0, "end")
         self.entry_start.insert(0, datum_sauber)
         datum_str = self.entry_start.get().strip()
+        self.cfg["nutzer_name"] = self.entry_name.get()
         try:
             gewaehltes_datum = datetime.strptime(datum_str, "%d.%m.%Y").date()
             wochentag = gewaehltes_datum.weekday()
@@ -686,7 +831,7 @@ class ZeiterfassungApp(ctk.CTk):
             self.cfg["start_montag"] = self.entry_start.get()
             soll_wert = float(self.entry_soll.get().replace(",", "."))
             self.cfg["soll_wochenstunden"] = soll_wert
-            # self.cfg["start_saldo"] = float(self.entry_vortrag.get().replace(",", "."))
+
             if not self.cfg.get("zeitmodelle"):
                 start_iso = datetime.strptime(datum_str, "%d.%m.%Y").strftime(
                     "%Y-%m-%d"
@@ -714,7 +859,10 @@ class ZeiterfassungApp(ctk.CTk):
             child.destroy()
         if not wochen_dict:
             ctk.CTkLabel(
-                self.scroll_frame, text="Keine Daten für diesen Zeitraum gefunden."
+                self.scroll_frame,
+                text="Keine Daten für diesen Zeitraum gefunden.",
+                fg_color="transparent",
+                text_color="#e0e0e0",
             ).pack(pady=20)
             return
         for montag in sorted(wochen_dict.keys()):
@@ -723,6 +871,8 @@ class ZeiterfassungApp(ctk.CTk):
                 montag,
                 wochen_dict[montag],
                 self.handle_payment_action,
+                fg_color="#1f1257",  # gleicher Ton wie Tab-Leiste
+                text_color="#e0e0e0",  # hellgraue Schrift
             )
             zeile.pack(fill="x", pady=2, padx=5)
 
@@ -791,14 +941,14 @@ class ZeiterfassungApp(ctk.CTk):
             self.fill_list(ergebnis["wochen"])
             self.aktuelle_wochen = ergebnis["wochen"]
             self.lbl_gesamt_saldo.configure(
-                text=f"Gesamt-Saldo: {ergebnis['saldo']:.2f} h", text_color="#E3E66A"
+                text=f"Gesamt-Saldo: {ergebnis['saldo']:.2f} h", text_color="#BCB7F7"
             )
             #  copyright-Label
             self.lbl_copy_right = ctk.CTkLabel(
                 self.footer,
-                text=f"© {date.today().year} Gerald Günther",
+                text=f"© {date.today().year} Gerald Günther | MIT-License",
                 font=("Roboto", 10),
-                text_color="gray60",
+                text_color="#e0e0e0",
             )
             self.lbl_copy_right.pack(side="right", padx=20)
 
