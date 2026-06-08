@@ -360,6 +360,16 @@ class ZeiterfassungApp(ctk.CTk):
 
         self.bind("<Return>", lambda event: self.save_and_reload())
 
+        # copyright-Label
+        self.lbl_copy_right = ctk.CTkLabel(
+            self,
+            text=f"© {date.today().year} Gerald Günther | MIT-License",
+            font=("Roboto", 11),
+            text_color="#e0e0e0",
+            fg_color="transparent",
+        )
+        self.lbl_copy_right.place(relx=1.0, rely=1.0, anchor="se", x=-20, y=-20)
+
     def setup_urlaub_tab(self):
         input_frame = ctk.CTkFrame(self.tab_urlaub, fg_color="#1f1257")
         input_frame.pack(fill="x", padx=10, pady=10)
@@ -929,6 +939,7 @@ class ZeiterfassungApp(ctk.CTk):
             aktueller_pfad = self.entry_ordner.get().strip()
             if not aktueller_pfad:
                 self.fill_list({})
+                self.lbl_copy_right.lift()
                 self.lbl_gesamt_saldo.configure(
                     text="Bitte zuerst einen PDF_Ordner wählen.", text_color="#F87171"
                 )
@@ -936,6 +947,7 @@ class ZeiterfassungApp(ctk.CTk):
 
             if not Path(aktueller_pfad).is_dir():
                 self.fill_list({})
+                self.lbl_copy_right.lift()
             self.lbl_gesamt_saldo.configure(
                 text=f"Ordner nicht gefunden: {aktueller_pfad}", text_color="#F87171"
             )
@@ -984,19 +996,12 @@ class ZeiterfassungApp(ctk.CTk):
             traceback.print_exc()
             logging.error(f"UI Load Error: {e}")
             self.fill_list({})
+            self.lbl_copy_right.lift()
             self.lbl_gesamt_saldo.configure(
                 text=f"Fehler: {str(e)}", text_color="#F87171"
             )
-            #  copyright-Label
-            self.lbl_copy_right = ctk.CTkLabel(
-                self.footer,
-                text=f"© {date.today().year} Gerald Günther | MIT-License",
-                font=("Roboto", 10),
-                text_color="#e0e0e0",
-            )
-            self.lbl_copy_right.pack(side="right", padx=20)
 
-            self.focus_set()
+        self.focus_set()
 
     def handle_payment_action(self, montag: date, stunden: float, kategorie: str):
         speichere_auszahlung(montag, kategorie, stunden)
