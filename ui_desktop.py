@@ -184,15 +184,22 @@ class ZeiterfassungApp(ctk.CTk):
         self.aktuelles_jahr = self.cfg.get("aktuelles_jahr", date.today().year)
         self.setup_ui()
         self.setze_jahr(self.aktuelles_jahr)  # Startet mit dem gespeicherten Jahr
+        if not self.cfg.get("ordner"):
+            self.entry_ordner.focus_set()
         self.focus_set()
         self.bind("<F5>", lambda event: self.load_and_refresh)
 
     def create_date_entry(self, master, initial_date=None, **kwargs):
         """Erstellt ein DateEntry-Widget mit einheitlichem Format."""
-        if initial_date is None:
+        # Leeren String oder None behandeln wie "nicht gesetzt"-> heute
+        if not initial_date:
             initial_date = date.today()
         elif isinstance(initial_date, str):
-            initial_date = datetime.strptime(initial_date, "%d.%m.%Y").date()
+            # Wenn String aus config übergeben wird, diesen parsen
+            try:
+                initial_date = datetime.strptime(initial_date, "%d.%m.%Y").date()
+            except ValueError:
+                initial_date = date.today()
 
         de = DateEntry(
             master,
@@ -221,8 +228,16 @@ class ZeiterfassungApp(ctk.CTk):
             font=("Roboto", 12, "bold"),
         ).grid(row=0, column=0, padx=10, pady=10, sticky="w")
 
-        self.entry_ordner = ctk.CTkEntry(self.settings_frame, width=400)
-        self.entry_ordner.insert(0, self.cfg.get("ordner", ""))
+        self.entry_ordner = ctk.CTkEntry(
+            self.settings_frame,
+            width=400,
+            placeholder_text="   Bitte mit dem Button    >>Ordner wählen<<    bestimmen",
+            placeholder_text_color="#e0e0e0",
+        )
+        saved_path = self.cfg.get("ordner", "").strip()
+        if saved_path:
+            self.entry_ordner.insert(0, saved_path)
+
         self.entry_ordner.grid(row=0, column=1, padx=10, pady=10, sticky="w")
 
         self.btn_browse = ctk.CTkButton(
@@ -911,16 +926,35 @@ class ZeiterfassungApp(ctk.CTk):
 
     def load_and_refresh(self):
         try:
-            aktueller_pfad = self.entry_ordner.get()
-            jahres_start_str = self.entry_start.get()
-            jahres_start = datetime.strptime(jahres_start_str, "%d.%m.%Y").date()
-            if jahres_start.weekday() != 0:
-                jahres_start -= timedelta(days=jahres_start.weekday())
+            aktueller_pfad = self.entry_ordner.get().strip()
+            if not aktueller_pfad:
+                self.fill_list({})
+                self.lbl_gesamt_saldo.configure(
+                    text="Bitte zuerst einen PDF_Ordner wählen.", text_color="#F87171"
+                )
+                return
+
+            if not Path(aktueller_pfad).is_dir():
+                self.fill_list({})
+            self.lbl_gesamt_saldo.configure(
+                text=f"Ordner nicht gefunden: {aktueller_pfad}", text_color="#F87171"
+            )
+
+            jahres_start_str = self.entry_start.get().strip()
+            if not jahres_start_str:
+                jahres_start = date.today()
+                jahres_start = jahres_start - timedelta(days=jahres_start.weekday())
+            else:
+                jahres_start = datetime.strptime(jahres_start_str, "%d.%m.%Y").date()
+
+                if jahres_start.weekday() != 0:
+                    jahres_start -= timedelta(days=jahres_start.weekday())
 
             soll_stunden = float(self.entry_soll.get().replace(",", "."))
             zuschlaege = self.cfg.get("zuschlaege", {})
             feiertags_faktor = float(zuschlaege.get("feiertag", 1.0))
             zeitmodelle_liste = self.cfg.get("zeitmodelle", [])
+            fallback_saldo = 0.0
 
             # Vortrag-Fallback immer 0 – die automatische Berechnung hat Vorrang
             fallback_saldo = 0.0
@@ -943,6 +977,16 @@ class ZeiterfassungApp(ctk.CTk):
             self.lbl_gesamt_saldo.configure(
                 text=f"Gesamt-Saldo: {ergebnis['saldo']:.2f} h", text_color="#BCB7F7"
             )
+
+        except Exception as e:
+            import traceback
+
+            traceback.print_exc()
+            logging.error(f"UI Load Error: {e}")
+            self.fill_list({})
+            self.lbl_gesamt_saldo.configure(
+                text=f"Fehler: {str(e)}", text_color="#F87171"
+            )
             #  copyright-Label
             self.lbl_copy_right = ctk.CTkLabel(
                 self.footer,
@@ -953,13 +997,6 @@ class ZeiterfassungApp(ctk.CTk):
             self.lbl_copy_right.pack(side="right", padx=20)
 
             self.focus_set()
-
-        except Exception as e:
-            logging.error(f"UI Load Error: {e}")
-            self.fill_list({})
-            self.lbl_gesamt_saldo.configure(
-                text=f"Fehler: {str(e)}", text_color="#F87171"
-            )
 
     def handle_payment_action(self, montag: date, stunden: float, kategorie: str):
         speichere_auszahlung(montag, kategorie, stunden)
