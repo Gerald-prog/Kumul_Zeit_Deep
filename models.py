@@ -44,14 +44,23 @@ class Arbeitszeitrechner:
     def get_config_for_date(self, stichtag: date) -> dict:
         if stichtag in self._cache:
             return self._cache[stichtag]
-        gewaehltes_modell = (
-            self.zeitmodelle[0] if self.zeitmodelle else {"tagessoll": {}}
-        )
+
+        gewaehltes_modell = None
         for modell in self.zeitmodelle:
-            modell_start = date.fromisoformat(modell["gueltig_ab"])
+            if not modell.get("gueltig_ab"):  # überspringe leere oder fehlende Daten
+                continue
+            try:
+                modell_start = date.fromisoformat(modell["gueltig_ab"])
+            except ValueError:
+                continue   # auch hier überspringen, wenn das Datum ungültig ist
             if stichtag >= modell_start:
                 gewaehltes_modell = modell
             else:
                 break
+
+        if gewaehltes_modell is None:
+            # Fallback: leeres Dict mit Tagessoll 0/0... (wird später durch Fallback ersetzt)
+            gewaehltes_modell = {"tagessoll": {}}
+
         self._cache[stichtag] = gewaehltes_modell
         return gewaehltes_modell
