@@ -182,11 +182,14 @@ def wende_auszahlung_an(
     wochen: dict[date, WochenDaten],
     auszahlungen: dict[date, dict[str, float]],
 ):
+    print(f"📥 wende_auszahlung_an aufgerufen mit auszahlungen={auszahlungen}")
     for montag, kat_dict in auszahlungen.items():
         if montag not in wochen:
+            print(f"   ❌ Woche {montag} nicht in wochen gefunden!")
             continue
         w = wochen[montag]
         for kategorie, betrag in kat_dict.items():
+            print(f"   ➤ Woche {montag}, Kat={kategorie}, Betrag={betrag}")
             if kategorie == "urlaub":
                 verfuegbar = w.urlaub_gutschrift - w.urlaub_ausbezahlt
                 if verfuegbar <= 0:

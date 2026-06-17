@@ -28,17 +28,14 @@ class WochenZeile(ctk.CTkFrame):
     def __init__(
         self, master, montag, daten: WochenDaten, on_update_callback, **kwargs
     ):
-        # Standard-Farben setzen, falls nicht über kwargs übergeben
-        # Entferne evtl. mitgegebene Farben, die wir selbst setzen
         kwargs.pop("fg_color", None)
         kwargs.pop("bg_color", None)
-        kwargs.pop("text_color", None)  # <- verhindert Weitergabe an CTkFrame
+        kwargs.pop("text_color", None)
         super().__init__(master, fg_color="#1f1257", corner_radius=6, **kwargs)
         self.montag = montag
-        self.on_update_callback = on_update_callback
-        self.aktuelle_wochen = {}  # nach jeder Berechnung befüllt für Papierausdruck
+        self.on_update_callback = on_update_callback  # <-- wichtig: speichern!
 
-        # --- Datum/KW ---
+        # Datum/KW
         self.lbl_datum = ctk.CTkLabel(
             self,
             text=f"KW ab {montag.strftime('%d.%m.%Y')}",
@@ -48,7 +45,7 @@ class WochenZeile(ctk.CTkFrame):
         )
         self.lbl_datum.pack(side="left", padx=10)
 
-        # --- Ist/Soll ---
+        # Ist/Soll
         ist = daten.ist_stunden
         soll = daten.soll_stunden
         self.lbl_werte = ctk.CTkLabel(
@@ -60,12 +57,12 @@ class WochenZeile(ctk.CTkFrame):
         )
         self.lbl_werte.pack(side="left", padx=10)
 
-        # --- Differenz ---
+        # Differenz
         diff = daten.diff
         color = "#4ADE80" if diff >= 0 else "#F87171"
         self.lbl_diff = ctk.CTkLabel(
             self,
-            text=f"{diff:+.2f}",  # bei Bedarf Diff: vor {} setzen
+            text=f"Diff: {diff:+.2f}",
             text_color=color,
             font=("Roboto", 12, "bold"),
             width=90,
@@ -73,20 +70,20 @@ class WochenZeile(ctk.CTkFrame):
         )
         self.lbl_diff.pack(side="left", padx=10)
 
-        # --- Feiertagsanzeige (zwischen Diff und rechten Elementen) ---
+        # Feiertage (falls vorhanden)
         if daten.feiertags_namen:
-            feiertags_text = "  📅 " + ",  ".join(daten.feiertags_namen)
+            feiertags_text = "  📅 " + ", ".join(daten.feiertags_namen)
             self.lbl_feiertage = ctk.CTkLabel(
                 self,
                 text=feiertags_text,
-                font=("Roboto", 12),
+                font=("Roboto", 10),
                 text_color="#b0b0b0",
                 fg_color="transparent",
                 anchor="w",
             )
             self.lbl_feiertage.pack(side="left", padx=10)
 
-        # --- Saldo (ganz rechts) ---
+        # Saldo
         self.lbl_saldo = ctk.CTkLabel(
             self,
             text=f"Σ {daten.saldo:.2f}",
@@ -97,20 +94,22 @@ class WochenZeile(ctk.CTkFrame):
         )
         self.lbl_saldo.pack(side="right", padx=(0, 15))
 
-        # --- Nur FT+ Button, wenn an Feiertag gearbeitet wurde ---
+        # FT+ Button (nur bei gearbeiteten Feiertagen)
         if daten.feiertag_zuschlag_gutschrift > 0:
             bereits_ausgezahlt = daten.feiertag_zuschlag_ausbezahlt
             if bereits_ausgezahlt > 0:
                 btn_text = f"FT+ ✓ -{bereits_ausgezahlt:.1f}"
                 btn_color = "#F59E0B"
                 hover_color = "#D97706"
-                command = lambda: on_update_callback(montag, 0.0, "feiertag_zuschlag")
+                cmd = lambda m=montag, k="feiertag_zuschlag": self.on_update_callback(
+                    m, 0.0, k
+                )
             else:
                 btn_text = f"FT+ {daten.feiertag_zuschlag_gutschrift:.1f}"
                 btn_color = "#3B82F6"
                 hover_color = "#2563EB"
-                command = lambda: on_update_callback(
-                    montag, daten.feiertag_zuschlag_gutschrift, "feiertag_zuschlag"
+                cmd = lambda m=montag, v=daten.feiertag_zuschlag_gutschrift, k="feiertag_zuschlag": self.on_update_callback(
+                    m, v, k
                 )
 
             btn = ctk.CTkButton(
@@ -119,9 +118,44 @@ class WochenZeile(ctk.CTkFrame):
                 width=80,
                 fg_color=btn_color,
                 hover_color=hover_color,
-                command=command,
+                command=cmd,
             )
             btn.pack(side="right", padx=3)
+
+
+def _erstelle_standard_dateien():
+    """Kopiert eingebettete Standard-JSONs und Lizenzdateien ins EXE-Verzeichnis, falls sie fehlen."""
+    if not getattr(sys, "frozen", False):
+        return
+    exe_dir = Path(sys.executable).parent
+    meipass = Path(getattr(sys, "_MEIPASS"))
+
+    # JSON-Konfigurationen
+    for datei in ["config.json", "abwesenheiten.json"]:
+        ziel = exe_dir / datei
+        if not ziel.exists():
+            quelle = meipass / datei
+            if quelle.exists():
+                ziel.write_text(quelle.read_text(encoding="utf-8"), encoding="utf-8")
+
+    # Einzelne Lizenzdateien
+    for datei in ["LICENSE.txt", "LICENSE_INFO.txt"]:
+        ziel = exe_dir / datei
+        if not ziel.exists():
+            quelle = meipass / datei
+            if quelle.exists():
+                ziel.write_text(quelle.read_text(encoding="utf-8"), encoding="utf-8")
+
+    # Ordner licenses (mit allen enthaltenen Dateien)
+    lizenz_quelle = meipass / "licenses"
+    lizenz_ziel = exe_dir / "licenses"
+    if lizenz_quelle.exists() and not lizenz_ziel.exists():
+        lizenz_ziel.mkdir(exist_ok=True)
+        for item in lizenz_quelle.iterdir():
+            if item.is_file():
+                (lizenz_ziel / item.name).write_text(
+                    item.read_text(encoding="utf-8"), encoding="utf-8"
+                )
 
 
 class ZeiterfassungApp(ctk.CTk):
@@ -130,6 +164,7 @@ class ZeiterfassungApp(ctk.CTk):
         self.title("Solera Zeit-Manager")
         self.geometry("1100x800")
         self.configure(fg_color="#180b49")
+        _erstelle_standard_dateien()
         self.cfg = lade_config()
 
         # --- Icon setzen (Taskleiste + Fenster) ---
@@ -858,9 +893,9 @@ class ZeiterfassungApp(ctk.CTk):
             self.cfg["soll_wochenstunden"] = soll_wert
 
             if not self.cfg.get("zeitmodelle"):
-                start_iso = datetime.strptime(datum_str, "%d.%m.%Y").strftime(
-                    "%Y-%m-%d"
-                )
+                # Startdatum für das erste Zeitmodell: 1. Januar des (aktuellen Jahres - 2)
+                jahr_zwei_jahre_vorher = date.today().year - 2
+                start_iso = f"{jahr_zwei_jahre_vorher}-01-01"
                 tagessoll_wert = round(soll_wert / 5, 2)
                 self.cfg["zeitmodelle"] = [
                     {
@@ -924,12 +959,59 @@ class ZeiterfassungApp(ctk.CTk):
         erster = date(jahr, 1, 1)
         erster_montag = erster + timedelta(days=(7 - erster.weekday()) % 7)
 
-        # UI- Felder aktualisieren
+        # UI-Felder aktualisieren
         self.entry_start.delete(0, "end")
         self.entry_start.insert(0, erster_montag.strftime("%d.%m.%Y"))
 
         if self.combo_jahr.get() != str(jahr):
             self.combo_jahr.set(str(jahr))
+
+        # --- Neu: Sicherstellen, dass ein Zeitmodell für das gewählte Jahr existiert ---
+        zeitmodelle = self.cfg.get("zeitmodelle", [])
+        if not zeitmodelle:
+            # Gar keine Modelle vorhanden → Standardmodell ab (aktuelles Jahr - 2) anlegen
+            start_jahr = date.today().year - 2
+            start_iso = f"{start_jahr}-01-01"
+            soll_wert = float(
+                self.entry_soll.get().replace(",", ".")
+                or self.cfg.get("soll_wochenstunden", 40)
+            )
+            tagessoll_wert = round(soll_wert / 5, 2)
+            self.cfg["zeitmodelle"] = [
+                {
+                    "gueltig_ab": start_iso,
+                    "bundesland": "SN",
+                    "tagessoll": {
+                        str(i): tagessoll_wert if i < 5 else 0.0 for i in range(7)
+                    },
+                }
+            ]
+            speichere_config(self.cfg)
+        else:
+            # Modelle vorhanden – prüfen, ob eines das gewählte Jahr abdeckt
+            jahr_abgedeckt = False
+            for modell in zeitmodelle:
+                try:
+                    modell_start = date.fromisoformat(modell["gueltig_ab"])
+                    if modell_start.year <= jahr:
+                        jahr_abgedeckt = True
+                        break
+                except (ValueError, KeyError):
+                    continue
+            if not jahr_abgedeckt:
+                # Kein Modell gilt für dieses Jahr – ältestes Modell duplizieren mit Startdatum (gewähltes Jahr - 1)
+                # Einfacher: wir fügen ein neues Modell ab 01.01. des gewählten Jahres mit den Werten des letzten Modells ein
+                letztes_modell = max(
+                    zeitmodelle, key=lambda m: m.get("gueltig_ab", "0000-01-01")
+                )
+                neues_modell = letztes_modell.copy()
+                neues_modell["gueltig_ab"] = f"{jahr}-01-01"
+                self.cfg["zeitmodelle"].append(neues_modell)
+                self.cfg["zeitmodelle"].sort(key=lambda x: x["gueltig_ab"])
+                speichere_config(self.cfg)
+
+        # Daten neu laden
+        self.load_and_refresh()
 
         # Daten neu laden
         self.load_and_refresh()
@@ -980,6 +1062,15 @@ class ZeiterfassungApp(ctk.CTk):
                 feiertags_zuschlag_faktor=feiertags_faktor,
             )
 
+            # Debug: Prüfe die FT+-Werte einer bestimmten Woche
+            test_montag = date(2025, 11, 17)  # Beispiel: KW mit Buß- und Bettag
+            if test_montag in ergebnis["wochen"]:
+                w = ergebnis["wochen"][test_montag]
+                print(
+                    f"🔍 Woche {test_montag}: FT+ Gutschrift={w.feiertag_zuschlag_gutschrift}, "
+                    f"ausbezahlt={w.feiertag_zuschlag_ausbezahlt}"
+                )
+
             # Automatischen Vortrag nur anzeigen, nicht in Config speichern
             self.entry_vortrag.delete(0, "end")
             self.entry_vortrag.insert(0, f"{ergebnis['vortrag']:.2f}")
@@ -1004,7 +1095,13 @@ class ZeiterfassungApp(ctk.CTk):
         self.focus_set()
 
     def handle_payment_action(self, montag: date, stunden: float, kategorie: str):
+        print(
+            f"🔵 handle_payment_action: montag={montag}, stunden={stunden}, kategorie={kategorie}"
+        )
         speichere_auszahlung(montag, kategorie, stunden)
+        # Prüfen, was direkt danach in der JSON steht
+        raw = lade_abwesenheiten_raw()
+        print(f"   auszahlungen_raw nach Speichern: {raw.get('auszahlungen_raw', {})}")
         self.load_and_refresh()
 
     def exportiere_pdf(self):
