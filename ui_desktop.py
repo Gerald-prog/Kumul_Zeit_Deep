@@ -20,6 +20,7 @@ from tkcalendar import DateEntry
 import ctypes
 from fpdf import FPDF
 import tempfile, os, platform
+import shutil
 
 logging.basicConfig(level=logging.INFO)
 
@@ -157,6 +158,14 @@ def _erstelle_standard_dateien():
                     item.read_text(encoding="utf-8"), encoding="utf-8"
                 )
 
+    # --- Anleitung und weitere statische Dokumente ---
+    for dokument in ["ANLEITUNG.pdf"]:
+        ziel = exe_dir / dokument
+        if not ziel.exists():
+            quelle = meipass / dokument
+            if quelle.exists():
+                shutil.copyfile(quelle, ziel)
+
 
 class ZeiterfassungApp(ctk.CTk):
     def __init__(self):
@@ -166,6 +175,7 @@ class ZeiterfassungApp(ctk.CTk):
         self.configure(fg_color="#180b49")
         _erstelle_standard_dateien()
         self.cfg = lade_config()
+        print("Geladene Config: ", self.cfg)
 
         # --- Icon setzen (Taskleiste + Fenster) ---
         try:
@@ -907,6 +917,7 @@ class ZeiterfassungApp(ctk.CTk):
                     }
                 ]
             speichere_config(self.cfg)
+
             if hasattr(self, "refresh_modelle_list"):
                 self.refresh_modelle_list()
             self.load_and_refresh()
